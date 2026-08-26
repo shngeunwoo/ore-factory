@@ -1,0 +1,149 @@
+:root {
+  color-scheme: dark;
+  --bg-0: #070a0e;
+  --bg-1: #0b1016;
+  --bg-2: #101822;
+  --panel: rgba(17, 26, 36, 0.94);
+  --panel-solid: #111a24;
+  --panel-raised: #16212d;
+  --steel: #263544;
+  --steel-light: #34495b;
+  --line: rgba(151, 190, 216, 0.16);
+  --line-bright: rgba(89, 215, 240, 0.48);
+  --text: #dbeaf2;
+  --muted: #7f98a8;
+  --cyan: #58d6ee;
+  --cyan-soft: rgba(88, 214, 238, 0.12);
+  --amber: #f0a949;
+  --amber-soft: rgba(240, 169, 73, 0.13);
+  --green: #65d899;
+  --green-soft: rgba(101, 216, 153, 0.13);
+  --red: #f06f68;
+  --red-soft: rgba(240, 111, 104, 0.13);
+  --radius: 8px;
+  --tile: 54px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+  font-family: "Chakra Petch", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg-0);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg-0);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 14% -10%, rgba(46, 138, 164, 0.2), transparent 34rem),
+    radial-gradient(circle at 100% 50%, rgba(211, 129, 45, 0.08), transparent 38rem),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(115, 169, 193, 0.02) 80px),
+    linear-gradient(160deg, var(--bg-1), var(--bg-0) 72%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 4px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+kbd {
+  min-width: 1.25rem;
+  padding: 0.08rem 0.28rem;
+  border: 1px solid var(--line);
+  border-bottom-color: rgba(151, 190, 216, 0.35);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.65rem 0.9rem;
+  transform: translateY(-150%);
+  border-radius: var(--radius);
+  background: var(--cyan);
+  color: #061015;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.eyebrow {
+  margin: 0 0 0.18rem;
+  color: var(--cyan);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}

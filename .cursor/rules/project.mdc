@@ -1,0 +1,35 @@
+---
+description: Ore Factory 공통. src 수정 전 매뉴얼 필수.
+globs: src/**/*,index.html,docs/**/*,ai/**/*,tools/**/*,AGENTS.md,README.md
+alwaysApply: false
+---
+
+# Ore Factory
+
+바닐라 격자 공장. 네이티브 ES 모듈. `.claude/` 쓰지 않음.
+
+## 필수
+
+`src/` 수정 전 `docs/manual/index.md` 읽고 해당 매뉴얼만 연다.
+
+- 구조 → `00-overview.md`
+- 규칙·밸런스 → `01-game-design.md`
+- 코드 레이어 → `02-architecture.md`
+- AI 7층 → `03-vibe-layers.md`
+
+지금 초점: `ai/CONTEXT.md`
+
+## 원칙
+
+- 게임 로직 숫자 → `src/js/domain/recipes.js`
+- `domain/`, `game/` 은 DOM을 모름
+- 의존 방향은 `ui → game → domain`
+- 한국어 UI. 코드·식별자는 영어
+- CSS/JS 변경 시 `index.html` `?v=` 증가
+
+## 금지
+
+- 매뉴얼 없이 `src/` 수정
+- 번들러, React/Vue, `window.OF`
+- 상점 3×3을 일반 건물로 덮기
+- 프로젝트 루트에 `.claude/` 생성

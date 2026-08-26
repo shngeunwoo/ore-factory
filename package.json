@@ -1,0 +1,10 @@
+{
+  "name": "ore-factory",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node tools/validate.js",
+    "test": "node --test",
+    "check": "npm run validate && npm test"
+  }
+}

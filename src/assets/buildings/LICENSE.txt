@@ -1,0 +1,10 @@
+Core Machines
+Copyright: Reactorcore Art
+Source: https://opengameart.org/content/core-reactor-machines
+License: CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+Used sprites: 2.png, 6.png, 10.png, 38.png, 39.png, 50.png.
+The sprites were cropped, resized with nearest-neighbor sampling, and combined
+into core-machines.png for Ore Factory. T2 and T3 sheets are hue-shifted
+variants of the same CC0 sprites.

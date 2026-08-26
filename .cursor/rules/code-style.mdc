@@ -1,0 +1,17 @@
+---
+description: Ore Factory JS/CSS 코드 스타일
+globs: src/**/*,index.html
+alwaysApply: false
+---
+
+# 코드 스타일
+
+- 브라우저 네이티브 ES 모듈. 전역 `window.OF` 금지
+- `domain/`, `game/`에서 DOM·`window` 접근 금지
+- 의존 방향은 `ui → game → domain`
+- 밸런스 숫자 하드코딩 금지 → `src/js/domain/recipes.js`
+- 시뮬레이션은 이벤트를 발행하고 DOM은 `ui/`만 갱신
+- 타일 시각 상태는 `ui/map-view.js`가 단독 소유
+- 저장 스냅샷은 데이터만 포함하고 스키마 버전을 둔다
+- 플레이어 미발견 아이템은 `???`
+- 사용자 UI는 한국어, 코드 식별자는 영어

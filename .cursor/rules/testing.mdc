@@ -1,0 +1,28 @@
+---
+description: Ore Factory 검증. 정적·단위 테스트 후 브라우저 확인.
+globs: src/**/*,index.html,tools/**/*,docs/manual/01-game-design.md
+alwaysApply: false
+---
+
+# 검증
+
+변경 후 아래를 먼저 실행한다.
+
+```powershell
+node tools/validate.js
+node --test
+```
+
+`cd c:\dev\ore-factory` 후 `powershell -File tools/serve.ps1`:
+
+1. 광석 길게 누르기 → 게이지 → 인벤 증가 (돌 보너스 가능)
+2. 상점 열어 판매 및 레일 자동 판매 → 돈·통계·발견 증가
+3. 화로 설치 → 석탄·원광 투입 → 주괴
+4. 설치/연속 레일/철거 모드 켜고 끄기, 자원 전액 회수
+5. 맵 확대·축소·중앙 복귀, `+` 확장
+6. 새로고침은 새 게임. 설정에서 OF2 코드 생성·붙여넣기, txt 저장·열기, 초기화
+7. 모바일 하단 제작 패널과 키보드 방향키/Enter/숫자키
+
+`tools/validate.js`와 Node 테스트는 브라우저 플레이를 대체하지 않는다.
+
+도메인 숫자를 바꿨으면 `docs/manual/01-game-design.md` 와 `recipes.js` 가 같은지 본다.

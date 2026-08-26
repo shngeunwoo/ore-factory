@@ -1,0 +1,9 @@
+# Ore Factory
+AGENTS.local.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+node_modules/

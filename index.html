@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d12">
+  <meta name="description" content="광석을 캐고 자동화 공장을 건설하는 격자 전략 게임">
+  <title>Ore Factory</title>
+  <link rel="stylesheet" href="src/css/style.css?v=25">
+</head>
+<body>
+  <a class="skip-link" href="#grid">공장 맵으로 건너뛰기</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><i></i>OF</span>
+      <div>
+        <h1>ORE FACTORY</h1>
+        <p>INDUSTRIAL CONTROL NETWORK</p>
+      </div>
+    </div>
+
+    <section class="telemetry" aria-label="공장 현황">
+      <div id="money" class="money" aria-live="polite"><small>CREDITS</small><b>$0</b></div>
+      <div class="stat"><small>채굴</small><b id="stat-mine">0</b></div>
+      <div class="stat"><small>판매</small><b id="stat-sell">$0</b></div>
+      <div class="stat"><small>확장</small><b id="stat-expand">0</b></div>
+      <div class="stat power-stat"><small>전력</small><b id="stat-power" aria-live="polite">0 / 0</b></div>
+      <div class="stat"><small>연구점</small><b id="stat-research">0</b></div>
+      <span id="save-status" class="save-status" aria-live="polite">코드 저장</span>
+    </section>
+
+    <div class="top-actions">
+      <button type="button" class="icon-btn mobile-only" data-action="craft-toggle" aria-controls="side-panel" aria-expanded="false">제작</button>
+      <button type="button" class="icon-btn" data-action="sound" aria-pressed="true" title="효과음 켜기/끄기">SFX</button>
+      <button type="button" class="icon-btn" data-action="settings" aria-haspopup="dialog">설정</button>
+    </div>
+
+    <section class="inventory" aria-label="보유 자원">
+      <div class="inventory-group">
+        <span>원자재</span>
+        <div id="inv-ores" class="inventory-row"></div>
+      </div>
+      <div id="ingot-group" class="inventory-group" hidden>
+        <span>주괴</span>
+        <div id="inv-ingots" class="inventory-row"></div>
+      </div>
+    </section>
+  </header>
+
+  <main class="layout">
+    <section class="factory-view" aria-labelledby="map-title">
+      <div class="view-toolbar">
+        <div>
+          <p class="eyebrow">SECTOR MAP</p>
+          <h2 id="map-title">정제 시설 <span id="map-size">9 × 9</span></h2>
+        </div>
+        <div class="tool-group" aria-label="맵 도구">
+          <button type="button" class="tool-btn" data-action="zoom-out" title="축소">−</button>
+          <button type="button" class="tool-btn wide" data-action="center">중앙</button>
+          <button type="button" class="tool-btn" data-action="zoom-in" title="확대">＋</button>
+          <button type="button" class="tool-btn danger" data-action="demolish" aria-pressed="false">철거 <kbd>0</kbd></button>
+          <button type="button" class="tool-btn" data-action="power-demolish" aria-pressed="false">전력 철거 <kbd>P</kbd></button>
+        </div>
+      </div>
+
+      <div class="map-frame" id="map-frame">
+        <button type="button" class="expand expand-n" data-dir="n" aria-label="북쪽 한 줄 확장"><span>↑</span><small class="expand-cost">$20</small></button>
+        <button type="button" class="expand expand-e" data-dir="e" aria-label="동쪽 한 줄 확장"><span>→</span><small class="expand-cost">$20</small></button>
+        <button type="button" class="expand expand-s" data-dir="s" aria-label="남쪽 한 줄 확장"><span>↓</span><small class="expand-cost">$20</small></button>
+        <button type="button" class="expand expand-w" data-dir="w" aria-label="서쪽 한 줄 확장"><span>←</span><small class="expand-cost">$20</small></button>
+        <div class="map-viewport" id="map-viewport">
+          <div id="grid" class="grid" role="grid" aria-label="공장 격자" tabindex="0"></div>
+        </div>
+        <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+      </div>
+
+      <div id="place-hint" class="place-hint" hidden>
+        <span class="status-dot"></span>
+        <b id="place-title">설치 모드</b>
+        <span id="place-copy">유효한 타일을 선택하세요.</span>
+        <button type="button" class="text-btn" data-action="cancel-tool">취소 <kbd>Esc</kbd></button>
+      </div>
+
+      <aside id="tutorial" class="tutorial" hidden>
+        <header>
+          <p class="eyebrow">TUTORIAL</p>
+          <small id="tutorial-index">1 / 4</small>
+        </header>
+        <h3 id="tutorial-title">광석 채굴</h3>
+        <p id="tutorial-copy">광석 칸을 길게 누르세요. 게이지가 차면 자원이 들어옵니다.</p>
+        <button type="button" class="text-btn" data-action="tutorial-skip">건너뛰기</button>
+      </aside>
+
+      <details id="guide" class="guide" open>
+        <summary>
+          <span><i></i>가동 체크리스트</span>
+          <small id="guide-count">0 / 4</small>
+        </summary>
+        <ol id="guide-list"></ol>
+      </details>
+    </section>
+
+    <aside id="side-panel" class="side-panel" aria-labelledby="craft-title">
+      <header>
+        <div>
+          <p class="eyebrow">FABRICATION</p>
+          <h2 id="craft-title">공장 터미널</h2>
+        </div>
+        <button type="button" class="icon-btn mobile-only" data-action="craft-close" aria-label="제작 패널 닫기">닫기</button>
+      </header>
+      <nav class="panel-tabs" aria-label="공장 패널">
+        <button type="button" data-panel="craft" aria-selected="true">건설</button>
+        <button type="button" data-panel="research" aria-selected="false">연구</button>
+        <button type="button" data-panel="quests" aria-selected="false">퀘스트</button>
+      </nav>
+      <div id="craft-list" class="craft-list" data-panel-content="craft"></div>
+      <div id="research-list" class="craft-list" data-panel-content="research" hidden></div>
+      <div id="quest-list" class="craft-list" data-panel-content="quests" hidden></div>
+      <section class="activity">
+        <h3>활동 로그</h3>
+        <ol id="activity-log" aria-live="polite"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <section id="modal-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button type="button" class="modal-close" data-action="modal-close" aria-label="창 닫기">×</button>
+      <div id="modal-content"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="src/js/ui/main.js?v=25"></script>
+</body>
+</html>
