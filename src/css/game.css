@@ -883,24 +883,25 @@ body.tool-active .map-viewport {
 
 @keyframes tutorial-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 2px rgba(88, 214, 238, 0.72), 0 0 12px rgba(88, 214, 238, 0.28);
+    box-shadow: 0 0 0 2px #140c04, 0 0 0 5px var(--amber), 0 0 22px rgba(240, 169, 73, 0.95);
   }
   50% {
-    box-shadow: 0 0 0 3px rgba(88, 214, 238, 1), 0 0 22px rgba(88, 214, 238, 0.55);
+    box-shadow: 0 0 0 2px #140c04, 0 0 0 7px #ffe08a, 0 0 30px rgba(255, 224, 138, 1);
   }
 }
 
 .tutorial-spot {
-  outline: 2px solid var(--cyan);
-  outline-offset: 2px;
-  animation: tutorial-pulse 1.15s ease-in-out infinite;
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+  animation: tutorial-pulse 0.9s ease-in-out infinite;
 }
 
 .tile.tutorial-spot {
-  z-index: 11;
+  z-index: 14;
   overflow: visible;
-  outline-offset: -2px;
-  border-color: var(--cyan);
+  outline-offset: 3px;
+  border-color: var(--amber);
+  filter: saturate(1.2) brightness(1.14);
 }
 
 .recipe.tutorial-spot,
@@ -911,8 +912,8 @@ body.tool-active .map-viewport {
 .manual-controls .tutorial-spot {
   z-index: 2;
   overflow: visible;
-  border-color: var(--cyan);
-  background: color-mix(in srgb, var(--cyan-soft) 70%, transparent);
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber-soft) 80%, transparent);
 }
 
 .guide {
@@ -958,7 +959,7 @@ body.tool-active .map-viewport {
 
 .guide ol {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.35rem;
   margin: 0;
   padding: 0 0.6rem 0.6rem;

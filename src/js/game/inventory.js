@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, ITEMS, SELL, TECHNOLOGIES, createTutorialProgress, itemName } from "../domain/recipes.js?v=30";
+import { BALANCE, BUILDINGS, INGOT_IDS, ITEMS, SELL, TECHNOLOGIES, TUTORIAL_KITS, createTutorialProgress, itemName, tutorialKeepsFurnaceFuel } from "../domain/recipes.js?v=31";
 
 export class EventBus {
   constructor() {
@@ -94,6 +94,21 @@ export class GameStore {
     return true;
   }
 
+  grantTutorialKit(stepId) {
+    const kit = TUTORIAL_KITS[stepId];
+    if (!kit || this.state.settings.tutorialSkipped) return false;
+    let given = false;
+    Object.entries(kit).forEach(([id, amount]) => {
+      const need = Math.max(0, amount - this.count(id));
+      if (need > 0 && this.add(id, need, "tutorial")) given = true;
+    });
+    return given;
+  }
+
+  keepsTutorialFurnaceFuel() {
+    return tutorialKeepsFurnaceFuel(this.state.progress, this.state.settings.tutorialSkipped);
+  }
+
   snapshot() {
     return structuredClone(this.state);
   }
@@ -182,6 +197,10 @@ export class GameStore {
     this.state.stats.sold += gained;
     this.state.stats.soldItems += count;
     this.markProgress("sold");
+    if (source === "automatic" && this.state.progress.smelted) {
+      if (INGOT_IDS.includes(id)) this.markProgress("collected");
+      this.markProgress("linked");
+    }
     this.bus.emit("sale", { id, amount: count, gained, source });
     this.changed("sale");
     return { amount: count, gained };

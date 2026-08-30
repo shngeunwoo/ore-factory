@@ -1,6 +1,6 @@
-import { BALANCE, ORE_LABEL, itemName, tutorialTileHint } from "../domain/recipes.js?v=30";
-import { RAIL_DIRECTIONS } from "../game/buildings.js?v=30";
-import { tileKey } from "../game/map.js?v=30";
+import { BALANCE, INGOT_IDS, ORE_LABEL, itemName, tutorialTileHint } from "../domain/recipes.js?v=31";
+import { RAIL_DIRECTIONS } from "../game/buildings.js?v=31";
+import { tileKey } from "../game/map.js?v=31";
 
 const BUILDING_MARKS = {
   furnace: "IF",
@@ -273,13 +273,82 @@ export class MapView {
   }
 
   isTutorialTile(tile) {
-    const step = this.getTutorial();
-    if (!tutorialTileHint(step, tile)) return false;
-    if (step.hint?.tiles !== "empty") return true;
-    return CARDINAL.some(([, dx, dy]) => {
-      const neighbor = this.world.get(tile.x + dx, tile.y + dy);
-      return Boolean(neighbor?.building?.type === "shop" || neighbor?.rail);
+    const focus = this.pickTutorialFocus();
+    return Boolean(focus && focus.x === tile.x && focus.y === tile.y);
+  }
+
+  shopDistance(tile) {
+    let min = Infinity;
+    this.world.forEach((candidate) => {
+      if (candidate.building?.type !== "shop") return;
+      min = Math.min(min, Math.max(Math.abs(tile.x - candidate.x), Math.abs(tile.y - candidate.y)));
     });
+    return min;
+  }
+
+  hasRailNeighbor(tile) {
+    return CARDINAL.some(([, dx, dy]) => this.world.get(tile.x + dx, tile.y + dy)?.rail);
+  }
+
+  railTouchesShop() {
+    let found = false;
+    this.world.forEach((tile) => {
+      if (!tile.rail || found) return;
+      CARDINAL.forEach(([, dx, dy]) => {
+        if (this.world.get(tile.x + dx, tile.y + dy)?.building?.type === "shop") found = true;
+      });
+    });
+    return found;
+  }
+
+  pickTutorialFocus() {
+    const step = this.getTutorial();
+    if (!step) return null;
+    const kind = step.hint?.tiles;
+    const matches = [];
+    this.world.forEach((tile) => {
+      if (tutorialTileHint(step, tile)) matches.push(tile);
+    });
+    if (!matches.length) return null;
+    if (kind === "ore") {
+      return matches.find((tile) => tile.ore === "iron")
+        || matches.find((tile) => tile.ore === "copper")
+        || matches[0];
+    }
+    if (kind === "shop") return matches.find((tile) => tile.building?.center) || matches[0];
+    if (kind === "empty") {
+      const away = matches
+        .map((tile) => ({ tile, dist: this.shopDistance(tile) }))
+        .filter((entry) => entry.dist >= 2)
+        .sort((a, b) => a.dist - b.dist || a.tile.y - b.tile.y || a.tile.x - b.tile.x);
+      const preferred = away.find((entry) => entry.dist === 2) || away[0];
+      return preferred?.tile || matches[0];
+    }
+    if (kind === "smelt") {
+      return matches.find((tile) => tile.building?.type === "furnace")
+        || matches.find((tile) => tile.rail && this.shopDistance(tile) >= 2)
+        || matches[0];
+    }
+    if (kind === "collect") {
+      return matches.find((tile) => tile.groundItems?.some((stack) => INGOT_IDS.includes(stack.type)))
+        || matches.find((tile) => INGOT_IDS.includes(tile.cargo?.type))
+        || matches.find((tile) => tile.building?.type === "furnace")
+        || matches[0];
+    }
+    if (kind === "link") {
+      if (this.railTouchesShop()) {
+        let furnace = null;
+        this.world.forEach((tile) => {
+          if (tile.building?.type === "furnace") furnace = tile;
+        });
+        return furnace;
+      }
+      const next = matches
+        .filter((tile) => this.hasRailNeighbor(tile))
+        .sort((a, b) => this.shopDistance(a) - this.shopDistance(b) || a.y - b.y || a.x - b.x);
+      return next[0] || matches[0];
+    }
+    return matches[0];
   }
 
   tileFromElement(target) {

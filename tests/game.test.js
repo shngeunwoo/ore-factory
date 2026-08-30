@@ -17,6 +17,7 @@ import {
   TUTORIAL_STEPS,
   createTutorialProgress,
   tutorialComplete,
+  tutorialKeepsFurnaceFuel,
   tutorialTileHint,
 } from "../src/js/domain/recipes.js";
 import { createBuilding } from "../src/js/game/buildings.js";
@@ -36,28 +37,38 @@ test("튜토리얼은 완료되지 않은 다음 단계만 가리킨다", () => 
   assert.equal(nextTutorialStep({ mined: true, sold: true, railed: true }).id, "smelted");
   assert.equal(nextTutorialStep({
     mined: true, sold: true, railed: true, smelted: true,
+  }).id, "collected");
+  assert.equal(nextTutorialStep({
+    mined: true, sold: true, railed: true, smelted: true, collected: true,
+  }).id, "linked");
+  assert.equal(nextTutorialStep({
+    mined: true, sold: true, railed: true, smelted: true, collected: true, linked: true,
   }).id, "researched");
   assert.equal(nextTutorialStep({
-    mined: true, sold: true, railed: true, smelted: true, researched: true,
+    mined: true, sold: true, railed: true, smelted: true, collected: true, linked: true, researched: true,
   }).id, "miner");
   assert.equal(nextTutorialStep({
-    mined: true, sold: true, railed: true, smelted: true, researched: true, miner: true,
+    mined: true, sold: true, railed: true, smelted: true, collected: true, linked: true, researched: true, miner: true,
   }), null);
-  assert.equal(TUTORIAL_STEPS.length, 6);
+  assert.equal(TUTORIAL_STEPS.length, 8);
   assert.equal(tutorialComplete(createTutorialProgress({ automated: true })), false);
   assert.equal(createTutorialProgress({ automated: true }).railed, true);
+  assert.equal(createTutorialProgress({ automated: true }).linked, true);
+  assert.equal(createTutorialProgress({ automated: true, smelted: true }).collected, true);
   assert.equal(tutorialTileHint(TUTORIAL_STEPS[0], { ore: "iron" }), true);
   assert.equal(tutorialTileHint(TUTORIAL_STEPS[2], { ore: null, building: null, rail: null }), true);
   assert.equal(tutorialTileHint(TUTORIAL_STEPS[3], { rail: { type: "rail" } }), true);
 });
 
-test("옛 automated 진행은 레일 단계만 완료로 본다", () => {
+test("옛 automated 진행은 레일·연결 판매까지 완료로 본다", () => {
   const { store } = setup();
   store.restore({
     ...store.snapshot(),
     progress: { mined: true, sold: true, smelted: true, automated: true },
   });
   assert.equal(store.state.progress.railed, true);
+  assert.equal(store.state.progress.collected, true);
+  assert.equal(store.state.progress.linked, true);
   assert.equal(store.state.progress.miner, false);
   assert.equal(nextTutorialStep(store.state.progress).id, "researched");
 });
@@ -79,6 +90,38 @@ test("레일 설치·자동 채굴 연구·채굴기 설치가 튜토리얼을 �
   assert.equal(store.state.progress.miner, true);
   store.adoptWorldProgress(world);
   assert.equal(store.state.progress.railed, true);
+});
+
+test("튜토리얼 재료는 부족한 만큼만 채운다", () => {
+  const { store } = setup();
+  store.state.counts.stone = 0;
+  assert.equal(store.grantTutorialKit("railed"), true);
+  assert.equal(store.count("stone"), 24);
+  assert.equal(store.grantTutorialKit("railed"), false);
+});
+
+test("튜토리얼 제련 구간에서는 석탄이 소모되지 않고 끝나면 소모된다", () => {
+  const { store, world, simulation } = setup();
+  Object.assign(store.state.progress, { mined: true, sold: true, railed: true });
+  assert.equal(tutorialKeepsFurnaceFuel(store.state.progress, false), true);
+  const tile = world.get(0, 0);
+  clearTiles(tile);
+  tile.rail = createBuilding(BUILDINGS.rail_1);
+  tile.building = createBuilding(BUILDINGS.furnace);
+  store.add("coal", 1, "test");
+  store.add("iron", 2, "test");
+  assert.equal(simulation.insertCoal(tile), true);
+  assert.equal(simulation.insertOre(tile, "iron"), true);
+  simulation.update(3);
+  assert.equal(store.state.progress.smelted, true);
+  assert.equal(tile.building.coal, 1);
+  assert.ok(simulation.takeOutput(tile) >= 1);
+  assert.equal(store.state.progress.collected, true);
+  store.updateSetting("tutorialSkipped", true);
+  assert.equal(store.keepsTutorialFurnaceFuel(), false);
+  assert.equal(simulation.insertOre(tile, "iron"), true);
+  simulation.update(3);
+  assert.equal(tile.building.coal, 0);
 });
 
 test("자동 판매는 발견·판매량·금액 통계를 갱신한다", () => {

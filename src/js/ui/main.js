@@ -18,9 +18,9 @@ import {
   powerDraw,
   TUTORIAL_STEPS,
   tutorialComplete,
-} from "../domain/recipes.js?v=30";
-import { EventBus, GameStore } from "../game/inventory.js?v=30";
-import { World, tileKey } from "../game/map.js?v=30";
+} from "../domain/recipes.js?v=31";
+import { EventBus, GameStore } from "../game/inventory.js?v=31";
+import { World, tileKey } from "../game/map.js?v=31";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -28,7 +28,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=30";
+} from "../game/buildings.js?v=31";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -38,12 +38,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=30";
-import { PowerSystem } from "../game/power.js?v=30";
-import { ProgressionSystem } from "../game/progression.js?v=30";
-import { Effects } from "./fx.js?v=30";
-import { MapView } from "./map-view.js?v=30";
-import { questMarkup, researchMarkup } from "./panels.js?v=30";
+} from "../game/persistence.js?v=31";
+import { PowerSystem } from "../game/power.js?v=31";
+import { ProgressionSystem } from "../game/progression.js?v=31";
+import { Effects } from "./fx.js?v=31";
+import { MapView } from "./map-view.js?v=31";
+import { questMarkup, researchMarkup } from "./panels.js?v=31";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -291,6 +291,14 @@ function currentTutorialStep() {
   return nextTutorialStep(store.state.progress);
 }
 
+function worldHasBuilding(type) {
+  let found = false;
+  world.forEach((tile) => {
+    if (tile.building?.type === type) found = true;
+  });
+  return found;
+}
+
 function applyTutorialHud() {
   $$(".tutorial-spot").forEach((element) => {
     if (!element.classList.contains("tile")) element.classList.remove("tutorial-spot");
@@ -299,23 +307,48 @@ function applyTutorialHud() {
   if (!step) return;
   const hint = step.hint || {};
   const mobile = matchMedia("(max-width: 900px)").matches;
-  if (hint.panel === "craft") {
-    $('[data-panel="craft"]')?.classList.add("tutorial-spot");
-    if (mobile && !ui.craftOpen && ui.mode !== "place") $('[data-action="craft-toggle"]')?.classList.add("tutorial-spot");
+  const connected = mapView.railTouchesShop();
+  if (hint.panel && mobile && !ui.craftOpen && ui.mode !== "place") {
+    $('[data-action="craft-toggle"]')?.classList.add("tutorial-spot");
+    return;
   }
-  if (hint.panel === "research") {
-    $('[data-panel="research"]')?.classList.add("tutorial-spot");
-    if (mobile && !ui.craftOpen && ui.mode !== "place") $('[data-action="craft-toggle"]')?.classList.add("tutorial-spot");
+  if (hint.panel && ui.activePanel !== hint.panel) {
+    $(`[data-panel="${hint.panel}"]`)?.classList.add("tutorial-spot");
+    return;
   }
-  if (hint.place) $(`[data-place="${hint.place}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
-  if (hint.tech) $(`[data-research="${hint.tech}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+  if (hint.place && ui.mode !== "place") {
+    const furnacePlaced = hint.place === "furnace" && worldHasBuilding("furnace");
+    const linkingDone = hint.place === "rail_1" && step.id === "linked" && connected;
+    if (!furnacePlaced && !linkingDone) {
+      $(`[data-place="${hint.place}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+      return;
+    }
+  }
+  if (hint.tech) {
+    $(`[data-research="${hint.tech}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+    return;
+  }
   if (hint.machine === "smelt" && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
-    $("[data-coal]", $("#modal-panel"))?.classList.add("tutorial-spot");
-    $(".ore-controls", $("#modal-panel"))?.classList.add("tutorial-spot");
+    const building = ui.modalTile.building;
+    if ((building.coal || 0) < 1) $("[data-coal]", $("#modal-panel"))?.classList.add("tutorial-spot");
+    else $("[data-ore]:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
+    return;
+  }
+  if (step.id === "collected" && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
+    $("[data-output]", $("#modal-panel"))?.classList.add("tutorial-spot");
+    return;
   }
   if (step.id === "sold" && ui.modal === "shop") {
-    $$(".sell-row:not(.empty)", $("#modal-panel")).forEach((row) => row.classList.add("tutorial-spot"));
+    $("[data-sell][data-count='1']:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
+    return;
   }
+  if (step.id === "linked" && connected && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
+    $("[data-ore]:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
+  }
+}
+
+function refreshTutorialTiles() {
+  if (currentTutorialStep()) mapView.renderAll();
 }
 
 function syncTutorialStep() {
@@ -323,6 +356,7 @@ function syncTutorialStep() {
   const id = step?.id || "";
   if (id !== lastTutorialId) {
     lastTutorialId = id;
+    if (step && store.grantTutorialKit(step.id)) logActivity("튜토리얼 재료 지급");
     if (step?.hint?.panel) {
       setActivePanel(step.hint.panel);
       if (matchMedia("(max-width: 900px)").matches) openCraftPanel();
@@ -1641,10 +1675,14 @@ function bindEvents() {
     if (ui.modalTile?.rail) renderMachine();
   });
   bus.on("cargoMove", ({ from, to, item }) => effects.cargo(from, to, item));
+  bus.on("buildingPlaced", () => refreshTutorialTiles());
+  bus.on("groundDrop", () => refreshTutorialTiles());
+  bus.on("machineCycle", () => refreshTutorialTiles());
   bus.on("cargoSold", ({ tile, gained }) => {
     effects.text(tile, `+$${gained}`, "sale");
     effects.pulse(tile, "sale");
     effects.sound("sell");
+    refreshTutorialTiles();
   });
   bus.on("discover", ({ id }) => {
     toast(`${itemName(id)} 발견`, "success");

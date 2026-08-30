@@ -235,40 +235,60 @@ export const TUTORIAL_STEPS = Object.freeze([
   {
     id: "mined",
     title: "광석 채굴",
-    copy: "맵에서 빛나는 광석 칸을 손가락이나 마우스로 길게 누르세요. 고리가 차면 자원이 들어옵니다. 철·구리 원광도 몇 개 캐 두면 제련에 씁니다.",
+    copy: "노란 테두리 광석 칸을 길게 누르세요. 고리가 차면 자원이 들어옵니다. 철 원광을 캐 두면 제련에 씁니다.",
     hint: { tiles: "ore" },
   },
   {
     id: "sold",
     title: "상점 판매",
-    copy: "맵 한가운데 빛나는 3×3 상점을 누르세요. 창이 열리면 돌이나 석탄 줄의 빛나는 판매 버튼을 누르세요. 크레딧이 생깁니다.",
+    copy: "노란 테두리 상점 칸을 누르세요. 창이 열리면 노란 「1개」 판매 버튼을 누르세요.",
     hint: { tiles: "shop" },
   },
   {
     id: "railed",
     title: "레일 설치",
-    copy: "오른쪽(모바일은 제작)에서 빛나는 「건설」과 「초급 레일」을 눌러 설치 모드를 켭니다. 그다음 상점 옆 빛나는 빈 땅을 누르거나 누른 채로 끌어 깔세요. 재료는 돌 2개입니다.",
+    copy: "건설에서 노란 「초급 레일」을 누른 뒤, 상점과 떨어진 노란 빈 땅에 깔세요. 지금은 상점에 붙이지 마세요.",
     hint: { tiles: "empty", panel: "craft", place: "rail_1" },
   },
   {
     id: "smelted",
     title: "첫 주괴",
-    copy: "건설에서 빛나는 「인라인 화로」를 누른 뒤, 빛나는 레일 칸 위에 놓으세요. 화로를 열어 빛나는 석탄 보충과 철·구리 원광 버튼을 누르면 주괴가 나옵니다.",
+    copy: "노란 「인라인 화로」를 레일 위에 놓으세요. 화로를 열어 석탄을 한 번 넣고 철 원광을 넣으면 주괴가 나옵니다.",
     hint: { tiles: "smelt", panel: "craft", place: "furnace", machine: "smelt" },
+  },
+  {
+    id: "collected",
+    title: "주괴 회수",
+    copy: "노란 칸을 누르거나 화로 창의 「주괴 전부 회수」를 누르세요. 구운 주괴를 인벤으로 가져옵니다.",
+    hint: { tiles: "collect" },
+  },
+  {
+    id: "linked",
+    title: "상점 연결 판매",
+    copy: "노란 빈 칸으로 레일을 상점까지 잇고, 화로에 원광을 한 번 더 넣으세요. 주괴가 상점에 닿으면 자동으로 팔립니다.",
+    hint: { tiles: "link", panel: "craft", place: "rail_1" },
   },
   {
     id: "researched",
     title: "자동 채굴 연구",
-    copy: "광석을 5개 캐면 퀘스트 「첫 채굴」로 연구점 2점이 들어옵니다. 빛나는 「연구」 탭을 연 다음 빛나는 「자동 채굴」을 연구하세요.",
+    copy: "광석을 5개 캐면 퀘스트 「첫 채굴」로 연구점 2점이 들어옵니다. 노란 「연구」에서 「자동 채굴」을 연구하세요.",
     hint: { panel: "research", tech: "automation" },
   },
   {
     id: "miner",
     title: "채굴기 설치",
-    copy: "건설에서 빛나는 「초급 채굴기」를 누른 뒤, 맵의 빛나는 광석 칸에 놓으세요. 철 주괴 2개와 돌 10개가 필요합니다.",
+    copy: "건설에서 노란 「초급 채굴기」를 누른 뒤, 노란 광석 칸에 놓으세요.",
     hint: { tiles: "ore", panel: "craft", place: "miner_1" },
   },
 ]);
+
+export const TUTORIAL_KITS = Object.freeze({
+  railed: Object.freeze({ stone: 24 }),
+  smelted: Object.freeze({ stone: 12, coal: 8, iron: 4 }),
+  miner: Object.freeze({ iron_ingot: 2, stone: 10 }),
+});
+
+export const TUTORIAL_FUEL_STEPS = Object.freeze(["smelted", "collected", "linked"]);
 
 export function createTutorialProgress(source = {}) {
   return {
@@ -276,6 +296,8 @@ export function createTutorialProgress(source = {}) {
     sold: Boolean(source.sold),
     smelted: Boolean(source.smelted),
     railed: Boolean(source.railed || source.automated),
+    collected: Boolean(source.collected || (source.automated && source.smelted)),
+    linked: Boolean(source.linked || source.automated),
     researched: Boolean(source.researched),
     miner: Boolean(source.miner),
   };
@@ -289,14 +311,27 @@ export function tutorialComplete(progress = {}) {
   return TUTORIAL_STEPS.every((step) => Boolean(progress[step.id]));
 }
 
+export function tutorialKeepsFurnaceFuel(progress = {}, skipped = false) {
+  if (skipped) return false;
+  const step = nextTutorialStep(progress);
+  return Boolean(step && TUTORIAL_FUEL_STEPS.includes(step.id));
+}
+
 export function tutorialTileHint(step, tile) {
   const kind = step?.hint?.tiles;
   if (!kind || !tile) return false;
   const type = tile.building?.type;
+  const ingotIds = Object.values(ORE_TO_INGOT);
   if (kind === "ore") return Boolean(tile.ore && !tile.building);
   if (kind === "shop") return type === "shop";
   if (kind === "empty") return !tile.ore && !tile.building && !tile.rail;
   if (kind === "smelt") return type === "furnace" || Boolean(tile.rail && !tile.building);
+  if (kind === "collect") {
+    if (type === "furnace") return true;
+    if (tile.groundItems?.some((stack) => ingotIds.includes(stack.type))) return true;
+    return ingotIds.includes(tile.cargo?.type);
+  }
+  if (kind === "link") return !tile.ore && !tile.building && !tile.rail;
   return false;
 }
 

@@ -5,7 +5,7 @@ import {
   UPGRADE_DEFS,
   itemName,
   powerDraw,
-} from "../domain/recipes.js?v=30";
+} from "../domain/recipes.js?v=31";
 
 export const RAIL_DIRECTIONS = Object.freeze({
   n: Object.freeze({ dx: 0, dy: -1, opposite: "s", label: "↑" }),
@@ -449,7 +449,10 @@ export class FactorySimulation {
       }
     });
     building.outputStack = {};
-    if (taken) this.changedTile(tile, "take-output");
+    if (taken) {
+      this.store.markProgress("collected");
+      this.changedTile(tile, "take-output");
+    }
     return taken;
   }
 
@@ -469,12 +472,14 @@ export class FactorySimulation {
 
   pickupGroundItems(tile) {
     if (!tile?.groundItems?.length) return 0;
+    const items = tile.groundItems;
+    const collectedIngot = items.some((stack) => Object.values(ORE_TO_INGOT).includes(stack.type));
     let total = 0;
-    tile.groundItems.forEach(({ type, amount }) => {
+    items.forEach(({ type, amount }) => {
       if (this.store.add(type, amount, "ground-pickup")) total += amount;
     });
-    const items = tile.groundItems;
     tile.groundItems = [];
+    if (collectedIngot) this.store.markProgress("collected");
     this.changedTile(tile, "ground-pickup");
     this.bus.emit("groundPickup", { tile, items, amount: total });
     return total;
@@ -793,7 +798,7 @@ export class FactorySimulation {
     building.progress += (dt * this.powerFactor(tile)) / time;
     if (building.progress >= 1) {
       building.progress = 0;
-      building.coal -= 1;
+      if (!this.store.keepsTutorialFurnaceFuel()) building.coal -= 1;
       building.outputStack[ingot] = (building.outputStack[ingot] || 0) + 1;
       building.smelting = null;
       this.store.discover(ingot, "smelting");
