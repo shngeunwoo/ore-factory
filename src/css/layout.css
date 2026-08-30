@@ -10,6 +10,7 @@
   align-items: center;
   gap: 0.65rem 1rem;
   padding: 0.7rem clamp(0.8rem, 2vw, 1.4rem);
+  padding-top: calc(0.7rem + env(safe-area-inset-top));
   border-bottom: 1px solid var(--line-bright);
   background: rgba(7, 11, 16, 0.88);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -1178,52 +1179,91 @@
   }
   .telemetry {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .layout {
     grid-template-columns: 1fr;
-    padding-bottom: 6rem;
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+  .view-toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .tool-group {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .tool-btn kbd,
+  .place-hint kbd {
+    display: none;
+  }
+  .icon-btn,
+  .tool-btn,
+  .text-btn,
+  .panel-tabs button {
+    min-height: 2.75rem;
   }
   .side-panel {
     position: fixed;
     right: 0.5rem;
-    bottom: 0.5rem;
+    bottom: calc(0.4rem + env(safe-area-inset-bottom));
     left: 0.5rem;
     top: auto;
     z-index: 50;
-    max-height: min(72vh, 620px);
-    transform: translateY(calc(100% + 1rem));
+    max-height: min(68vh, 620px);
+    transform: translateY(calc(100% + 1.5rem));
     transition: transform 220ms ease;
   }
   .side-panel.open {
     transform: translateY(0);
   }
+  body.craft-open .toast {
+    bottom: auto;
+    top: calc(5.6rem + env(safe-area-inset-top));
+  }
 }
 
 @media (max-width: 560px) {
   .topbar {
-    padding: 0.55rem 0.65rem;
+    padding: 0.5rem 0.65rem;
+    padding-top: calc(0.5rem + env(safe-area-inset-top));
+    gap: 0.45rem;
   }
   .brand p { display: none; }
   .logo { width: 2.2rem; height: 2.2rem; }
   .telemetry .stat {
-    min-width: 3.7rem;
+    min-width: 3.4rem;
+    padding: 0.28rem 0.42rem;
+  }
+  .money {
+    min-width: 5.2rem;
   }
   .top-actions .icon-btn {
-    min-height: 2rem;
-    padding: 0.35rem 0.48rem;
-    font-size: 0.62rem;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.68rem;
   }
   .view-toolbar {
     align-items: center;
   }
   .view-toolbar .eyebrow { display: none; }
+  .view-toolbar h2 { font-size: 0.92rem; }
   .tool-btn.wide { min-width: 3.2rem; }
   .tool-btn.danger { min-width: 3.4rem; }
-  .modal-panel { padding: 1rem; }
+  .modal-panel {
+    padding: 1rem;
+    max-height: min(88vh, 720px);
+    width: min(480px, calc(100vw - 1rem));
+  }
   .sell-row {
     grid-template-columns: 0.5rem minmax(0, 1fr) 1.4rem auto auto;
     gap: 0.28rem;
   }
-  .sell-row button { font-size: 0.6rem; padding: 0.18rem 0.28rem; }
+  .sell-row button { font-size: 0.6rem; padding: 0.18rem 0.28rem; min-height: 2.4rem; }
   .ore-controls { grid-template-columns: repeat(2, 1fr); }
+  .ore-controls button { min-height: 2.6rem; }
+  .toast {
+    bottom: calc(0.85rem + env(safe-area-inset-bottom));
+  }
 }

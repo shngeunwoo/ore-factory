@@ -21,6 +21,9 @@ http://127.0.0.1:8877/
 
 설정: [deploy-config.md](deploy-config.md)
 
-## Pages (아직 없음)
+## Pages
 
-GitHub Pages를 넣을 때는 `docs/manual/` 에 배포 문서를 추가한 뒤, 이 스킬과 `deploy-config.md` 만 고친다. `src/` 레이어는 그대로 둔다.
+GitHub Actions `.github/workflows/pages.yml`.
+https://shngeunwoo.github.io/ore-factory/
+
+상세: [docs/manual/04-deploy.md](../../../docs/manual/04-deploy.md)

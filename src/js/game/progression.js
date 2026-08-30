@@ -1,4 +1,4 @@
-import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=25";
+import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=26";
 
 export class ProgressionSystem {
   constructor(bus, store, world, power = null) {

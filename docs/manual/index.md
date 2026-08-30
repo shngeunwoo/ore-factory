@@ -8,5 +8,6 @@
 | 게임 규칙·밸런스 | `01-game-design.md` |
 | 코드 레이어·ES 모듈·이벤트 흐름 | `02-architecture.md` |
 | Agent / Context / Memory / Tool / Model / Knowledge / Infra | `03-vibe-layers.md` |
+| 로컬 서버·GitHub Pages | `04-deploy.md` |
 
 규칙: 위는 선택이 아니라 **필수 선행**. 매뉴얼과 어긋나는 `src/` 변경 금지.

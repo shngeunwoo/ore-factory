@@ -5,7 +5,7 @@ import {
   UPGRADE_DEFS,
   itemName,
   powerDraw,
-} from "../domain/recipes.js?v=25";
+} from "../domain/recipes.js?v=26";
 
 export const RAIL_DIRECTIONS = Object.freeze({
   n: Object.freeze({ dx: 0, dy: -1, opposite: "s", label: "↑" }),

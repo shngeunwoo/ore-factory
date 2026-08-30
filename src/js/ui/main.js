@@ -16,16 +16,16 @@ import {
   nextTutorialStep,
   powerDraw,
   TUTORIAL_STEPS,
-} from "../domain/recipes.js?v=25";
-import { EventBus, GameStore } from "../game/inventory.js?v=25";
-import { World, tileKey } from "../game/map.js?v=25";
+} from "../domain/recipes.js?v=26";
+import { EventBus, GameStore } from "../game/inventory.js?v=26";
+import { World, tileKey } from "../game/map.js?v=26";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=25";
+} from "../game/buildings.js?v=26";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -35,12 +35,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=25";
-import { PowerSystem } from "../game/power.js?v=25";
-import { ProgressionSystem } from "../game/progression.js?v=25";
-import { Effects } from "./fx.js?v=25";
-import { MapView } from "./map-view.js?v=25";
-import { questMarkup, researchMarkup } from "./panels.js?v=25";
+} from "../game/persistence.js?v=26";
+import { PowerSystem } from "../game/power.js?v=26";
+import { ProgressionSystem } from "../game/progression.js?v=26";
+import { Effects } from "./fx.js?v=26";
+import { MapView } from "./map-view.js?v=26";
+import { questMarkup, researchMarkup } from "./panels.js?v=26";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -988,6 +988,7 @@ function toggleSound() {
 
 function openCraftPanel() {
   ui.craftOpen = true;
+  document.body.classList.add("craft-open");
   $("#side-panel").classList.add("open");
   $("#side-panel").inert = false;
   $("#side-panel").removeAttribute("aria-hidden");
@@ -1000,6 +1001,7 @@ function openCraftPanel() {
 
 function closeCraftPanel() {
   ui.craftOpen = false;
+  document.body.classList.remove("craft-open");
   $("#side-panel").classList.remove("open");
   $(".factory-view").inert = false;
   $(".factory-view").removeAttribute("aria-hidden");
@@ -1025,6 +1027,15 @@ function syncCraftPanelAccessibility() {
   }
 }
 
+function isEditableTarget(node) {
+  return Boolean(node?.closest?.("textarea, input, [contenteditable='true']"));
+}
+
+function preventBrowserSelect(event) {
+  if (isEditableTarget(event.target)) return;
+  event.preventDefault();
+}
+
 function handleGridPointerDown(event) {
   if (event.button !== 0) return;
   const tile = mapView.tileFromElement(event.target);
@@ -1033,7 +1044,7 @@ function handleGridPointerDown(event) {
     event.preventDefault();
     const def = BUILDINGS[ui.placeId];
     attemptPlace(tile);
-    if (def?.type === "rail" && event.pointerType !== "touch") {
+    if (def?.type === "rail") {
       ui.dragPlace = true;
       ui.lastDragKey = tileKey(tile.x, tile.y);
       event.target.setPointerCapture?.(event.pointerId);
@@ -1511,12 +1522,18 @@ function bindEvents() {
     updateMachine();
   });
 
-  $("#grid").addEventListener("pointerdown", handleGridPointerDown);
+  $("#grid").addEventListener("pointerdown", handleGridPointerDown, { passive: false });
   $("#grid").addEventListener("pointermove", handleGridPointerMove);
   $("#grid").addEventListener("click", handleGridClick);
   $("#grid").addEventListener("contextmenu", (event) => {
     event.preventDefault();
     setTool();
+  });
+  document.addEventListener("selectstart", preventBrowserSelect);
+  document.addEventListener("dragstart", preventBrowserSelect);
+  document.addEventListener("contextmenu", (event) => {
+    if (isEditableTarget(event.target) || event.target.closest("#grid")) return;
+    event.preventDefault();
   });
   window.addEventListener("pointerup", handlePointerUp);
   window.addEventListener("pointercancel", handlePointerUp);
