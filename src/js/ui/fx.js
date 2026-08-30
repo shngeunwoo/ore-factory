@@ -1,3 +1,6 @@
+const FX_SOFT_CAP = 64;
+const FX_PRUNE = ".fx-particle, .fx-ring, .fx-text";
+
 export class Effects {
   constructor({ layer, frame, mapView, store }) {
     this.layer = layer;
@@ -5,6 +8,7 @@ export class Effects {
     this.mapView = mapView;
     this.store = store;
     this.audioContext = null;
+    this.flashTimer = 0;
   }
 
   positionFor(tile) {
@@ -18,6 +22,19 @@ export class Effects {
     };
   }
 
+  prune() {
+    const extras = this.layer.querySelectorAll(FX_PRUNE);
+    const overflow = extras.length - FX_SOFT_CAP;
+    if (overflow <= 0) return;
+    for (let index = 0; index < overflow; index += 1) extras[index].remove();
+  }
+
+  spawn(element, duration) {
+    this.prune();
+    this.layer.appendChild(element);
+    setTimeout(() => element.remove(), duration);
+  }
+
   text(tile, text, kind = "") {
     if (this.reducedMotion()) return;
     const position = this.positionFor(tile);
@@ -27,26 +44,57 @@ export class Effects {
     element.textContent = text;
     element.style.left = `${position.x}px`;
     element.style.top = `${position.y}px`;
-    this.layer.appendChild(element);
-    setTimeout(() => element.remove(), 900);
+    this.spawn(element, 980);
   }
 
-  burst(tile, kind = "spark", count = 7) {
+  burst(tile, kind = "spark", count = 8) {
     if (this.reducedMotion()) return;
     const position = this.positionFor(tile);
     if (!position) return;
-    for (let index = 0; index < count; index += 1) {
+    const n = Math.max(3, Math.min(14, count));
+    for (let index = 0; index < n; index += 1) {
       const particle = document.createElement("i");
-      const angle = (Math.PI * 2 * index) / count + Math.random() * 0.5;
-      const distance = 14 + Math.random() * 20;
-      particle.className = `fx-particle ${kind}`;
+      const angle = (Math.PI * 2 * index) / n + Math.random() * 0.55;
+      const distance = 16 + Math.random() * 26;
+      particle.className = `fx-particle ${kind}`.trim();
       particle.style.left = `${position.x}px`;
       particle.style.top = `${position.y}px`;
       particle.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
       particle.style.setProperty("--dy", `${Math.sin(angle) * distance}px`);
-      this.layer.appendChild(particle);
-      setTimeout(() => particle.remove(), 650);
+      particle.style.setProperty("--size", `${3 + Math.random() * 5}px`);
+      particle.style.setProperty("--life", `${520 + Math.random() * 280}ms`);
+      particle.style.setProperty("--rot", `${Math.round(angle * 57.3)}deg`);
+      this.spawn(particle, 820);
     }
+  }
+
+  shockwave(tile, kind = "install") {
+    if (this.reducedMotion()) return;
+    const position = this.positionFor(tile);
+    if (!position) return;
+    const ring = document.createElement("i");
+    ring.className = `fx-ring ${kind}`.trim();
+    ring.style.left = `${position.x}px`;
+    ring.style.top = `${position.y}px`;
+    this.spawn(ring, 560);
+  }
+
+  flash(kind = "sale") {
+    if (this.reducedMotion() || !this.frame) return;
+    this.frame.classList.remove("fx-flash", "flash-sale", "flash-heat", "flash-research", "flash-unlock", "flash-expand");
+    void this.frame.offsetWidth;
+    this.frame.classList.add("fx-flash", `flash-${kind}`);
+    clearTimeout(this.flashTimer);
+    this.flashTimer = setTimeout(() => {
+      this.frame.classList.remove("fx-flash", `flash-${kind}`);
+    }, 460);
+  }
+
+  bump(element) {
+    if (!element || this.reducedMotion()) return;
+    element.classList.remove("hud-bump");
+    void element.offsetWidth;
+    element.classList.add("hud-bump");
   }
 
   cargo(from, to, item) {
@@ -62,7 +110,7 @@ export class Effects {
     cargo.style.setProperty("--dx", `${finish.x - start.x}px`);
     cargo.style.setProperty("--dy", `${finish.y - start.y}px`);
     this.layer.appendChild(cargo);
-    setTimeout(() => cargo.remove(), 360);
+    setTimeout(() => cargo.remove(), 380);
   }
 
   pulse(tile, kind = "active") {
@@ -72,7 +120,7 @@ export class Effects {
     element.classList.remove(`pulse-${kind}`);
     void element.offsetWidth;
     element.classList.add(`pulse-${kind}`);
-    setTimeout(() => element.classList.remove(`pulse-${kind}`), 650);
+    setTimeout(() => element.classList.remove(`pulse-${kind}`), 700);
   }
 
   sound(kind) {

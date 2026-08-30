@@ -4,6 +4,7 @@ import {
   BALANCE,
   BUILDINGS,
   CRAFT_ORDER,
+  CRAFT_GROUPS,
   ITEMS,
   MINE_TIME,
   ORE_IDS,
@@ -25,6 +26,8 @@ import { clearTiles, setup } from "./helpers.js";
 
 test("v2 도메인 키와 연구 해금 대상이 완전하다", () => {
   assert.equal(CRAFT_ORDER.every((id) => BUILDINGS[id]), true);
+  assert.deepEqual(CRAFT_GROUPS.flatMap((group) => group.ids), [...CRAFT_ORDER]);
+  assert.equal(CRAFT_GROUPS.length, 3);
   assert.equal(ITEMS.every((item) => Object.hasOwn(SELL, item.id)), true);
   assert.equal(ORE_IDS.every((id) => Object.hasOwn(MINE_TIME, id)), true);
   assert.equal(Object.values(TECHNOLOGIES).every((tech) => tech.unlocks.every((id) => BUILDINGS[id])), true);

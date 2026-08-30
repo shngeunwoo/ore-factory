@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, INGOT_IDS, ITEMS, SELL, TECHNOLOGIES, TUTORIAL_KITS, createTutorialProgress, itemName, tutorialKeepsFurnaceFuel } from "../domain/recipes.js?v=32";
+import { BALANCE, BUILDINGS, INGOT_IDS, ITEMS, SELL, TECHNOLOGIES, TUTORIAL_KITS, createTutorialProgress, itemName, tutorialKeepsFurnaceFuel } from "../domain/recipes.js?v=36";
 
 export class EventBus {
   constructor() {

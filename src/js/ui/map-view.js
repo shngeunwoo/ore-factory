@@ -1,6 +1,6 @@
-import { BALANCE, INGOT_IDS, ORE_LABEL, itemName, tutorialTileHint } from "../domain/recipes.js?v=32";
-import { RAIL_DIRECTIONS } from "../game/buildings.js?v=32";
-import { tileKey } from "../game/map.js?v=32";
+import { BALANCE, INGOT_IDS, ORE_LABEL, itemName, tutorialTileHint } from "../domain/recipes.js?v=36";
+import { RAIL_DIRECTIONS } from "../game/buildings.js?v=36";
+import { tileKey } from "../game/map.js?v=36";
 
 const BUILDING_MARKS = {
   furnace: "IF",

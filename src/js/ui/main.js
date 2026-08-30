@@ -1,6 +1,7 @@
 import {
   BALANCE,
   BUILDINGS,
+  CRAFT_GROUPS,
   CRAFT_ORDER,
   INGOT_IDS,
   ITEMS,
@@ -18,9 +19,9 @@ import {
   powerDraw,
   TUTORIAL_STEPS,
   tutorialComplete,
-} from "../domain/recipes.js?v=32";
-import { EventBus, GameStore } from "../game/inventory.js?v=32";
-import { World, tileKey } from "../game/map.js?v=32";
+} from "../domain/recipes.js?v=36";
+import { EventBus, GameStore } from "../game/inventory.js?v=36";
+import { World, tileKey } from "../game/map.js?v=36";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -28,7 +29,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=32";
+} from "../game/buildings.js?v=36";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -38,12 +39,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=32";
-import { PowerSystem } from "../game/power.js?v=32";
-import { ProgressionSystem } from "../game/progression.js?v=32";
-import { Effects } from "./fx.js?v=32";
-import { MapView } from "./map-view.js?v=32";
-import { questMarkup, researchMarkup } from "./panels.js?v=32";
+} from "../game/persistence.js?v=36";
+import { PowerSystem } from "../game/power.js?v=36";
+import { ProgressionSystem } from "../game/progression.js?v=36";
+import { Effects } from "./fx.js?v=36";
+import { MapView } from "./map-view.js?v=36";
+import { questMarkup, researchMarkup } from "./panels.js?v=36";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -139,11 +140,18 @@ function chipMarkup(id) {
   const item = itemInfo(id);
   const count = store.count(id);
   return `
-    <span class="resource-chip ${count ? "" : "empty"}" title="${item.name}">
+    <span class="resource-chip ${count ? "" : "empty"}" style="--item-color:${item.color}" title="${item.name}" data-item="${id}">
       <i style="--item-color:${item.color}"></i>
       <span>${item.short}</span><b>${count}</b>
     </span>
   `;
+}
+
+const hudPulse = { money: null, mined: null, sold: null, research: null };
+
+function pulseHud(element, key, value) {
+  if (hudPulse[key] != null && hudPulse[key] !== value) effects.bump(element);
+  hudPulse[key] = value;
 }
 
 function renderChrome() {
@@ -164,6 +172,10 @@ function renderChrome() {
   $(".power-stat").title = `발전 ${generated} · 공급 ${supplied} / 수요 ${demand} · 축전 ${Math.floor(store.state.power.stored)} / ${Math.floor(store.state.power.capacity)}`;
   $(".power-stat").setAttribute("aria-label", $(".power-stat").title);
   $("#stat-research").textContent = String(store.state.research.points);
+  pulseHud($("#money"), "money", store.money);
+  pulseHud($("#stat-mine").closest(".stat"), "mined", store.state.stats.mined);
+  pulseHud($("#stat-sell").closest(".stat"), "sold", store.state.stats.sold);
+  pulseHud($("#stat-research").closest(".stat"), "research", store.state.research.points);
   updateSoundButton();
 }
 
@@ -227,33 +239,84 @@ function formatCost(cost, showMissing = false) {
   }).join("");
 }
 
+function detailsOpenState(selector, key) {
+  const state = {};
+  $$(selector).forEach((element) => {
+    state[element.dataset[key]] = element.open;
+  });
+  return state;
+}
+
+function detailsMarkup(className, dataKey, id, title, hint, body, open) {
+  if (!body) return "";
+  return `
+    <details class="${className}" data-${dataKey}="${id}" ${open ? "open" : ""}>
+      <summary>
+        <span>
+          <b>${title}</b>
+          ${hint ? `<small>${hint}</small>` : ""}
+        </span>
+        <em class="group-state"></em>
+      </summary>
+      <div class="${className}-body">${body}</div>
+    </details>
+  `;
+}
+
+function craftCardMarkup(id, index) {
+  const def = BUILDINGS[id];
+  const unlocked = store.isUnlocked(id);
+  const active = ui.mode === "place" && ui.placeId === id;
+  const affordable = store.has(def.craft);
+  const shortcut = index < 9 ? `<kbd>${index + 1}</kbd>` : "";
+  const placeLabel = def.place === "ore"
+    ? "광석 위"
+    : def.place === "rail"
+      ? "레일 위"
+      : def.place === "power"
+        ? "모든 칸"
+        : "빈 땅";
+  return `
+    <article class="recipe tier-card-${def.tier || 1} ${unlocked ? "" : "locked"} ${active ? "active" : ""}">
+      <header>
+        <div>
+          ${buildingImage(def.type, "building-thumb", "", def.tier)}
+          <span class="tier">T${def.tier || "M"}</span><strong>${def.name}</strong>
+        </div>
+        ${shortcut}
+      </header>
+      <p>${def.description}</p>
+      <small class="placement-rule">${placeLabel}</small>
+      <div class="recipe-cost">${formatCost(def.craft, true)}</div>
+      ${unlocked
+        ? `<button type="button" class="primary-btn ${active ? "selected" : ""}" data-place="${id}">
+            ${active ? "설치 취소" : affordable ? "설치 모드" : "재료 확인"} ${shortcut}
+          </button>`
+        : `<button type="button" class="unlock-btn" disabled>연구에서 해금</button>`}
+    </article>
+  `;
+}
+
 function renderCraft() {
-  $("#craft-list").innerHTML = CRAFT_ORDER.map((id, index) => {
-    const def = BUILDINGS[id];
-    const unlocked = store.isUnlocked(id);
-    const active = ui.mode === "place" && ui.placeId === id;
-    const affordable = store.has(def.craft);
-    const shortcut = index < 9 ? `<kbd>${index + 1}</kbd>` : "";
-    const placeLabel = def.place === "ore" ? "광석 위" : def.place === "rail" ? "레일 위" : "빈 땅";
-    return `
-      <article class="recipe tier-card-${def.tier || 1} ${unlocked ? "" : "locked"} ${active ? "active" : ""}">
-        <header>
-          <div>
-            ${buildingImage(def.type, "building-thumb", "", def.tier)}
-            <span class="tier">T${def.tier || "M"}</span><strong>${def.name}</strong>
-          </div>
-          ${shortcut}
-        </header>
-        <p>${def.description}</p>
-        <small class="placement-rule">${placeLabel}</small>
-        <div class="recipe-cost">${formatCost(def.craft, true)}</div>
-        ${unlocked
-          ? `<button type="button" class="primary-btn ${active ? "selected" : ""}" data-place="${id}">
-              ${active ? "설치 취소" : affordable ? "설치 모드" : "재료 확인"} ${shortcut}
-            </button>`
-          : `<button type="button" class="unlock-btn" disabled>연구에서 해금</button>`}
-      </article>
-    `;
+  const previous = detailsOpenState("[data-craft-group]", "craftGroup");
+  const step = currentTutorialStep();
+  $("#craft-list").innerHTML = CRAFT_GROUPS.map((group) => {
+    const unlockedCount = group.ids.filter((id) => store.isUnlocked(id)).length;
+    const tutorialHere = Boolean(step?.hint?.place && group.ids.includes(step.hint.place));
+    const placingHere = Boolean(ui.placeId && group.ids.includes(ui.placeId));
+    const open = tutorialHere || placingHere || (Object.hasOwn(previous, group.id)
+      ? previous[group.id]
+      : unlockedCount > 0);
+    const cards = group.ids.map((id) => craftCardMarkup(id, CRAFT_ORDER.indexOf(id))).join("");
+    return detailsMarkup(
+      "craft-group",
+      "craft-group",
+      group.id,
+      group.name,
+      `${group.hint} · ${unlockedCount}/${group.ids.length}`,
+      cards,
+      open,
+    );
   }).join("");
   applyTutorialHud();
 }
@@ -322,7 +385,10 @@ function applyTutorialHud() {
     const furnacePlaced = hint.place === "furnace" && worldHasBuilding("furnace");
     const linkingDone = hint.place === "rail_1" && step.id === "linked" && connected;
     if (!furnacePlaced && !linkingDone) {
-      $(`[data-place="${hint.place}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+      const recipe = $(`[data-place="${hint.place}"]`)?.closest(".recipe");
+      recipe?.classList.add("tutorial-spot");
+      const group = recipe?.closest("details");
+      if (group) group.open = true;
       return;
     }
   }
@@ -331,6 +397,8 @@ function applyTutorialHud() {
     return;
   }
   if (hint.machine === "smelt" && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
+    const operate = $("[data-inspect-group='operate']", $("#modal-panel"));
+    if (operate) operate.open = true;
     const building = ui.modalTile.building;
     if ((building.coal || 0) < 1) $("[data-coal]", $("#modal-panel"))?.classList.add("tutorial-spot");
     else $("[data-ore]:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
@@ -341,6 +409,8 @@ function applyTutorialHud() {
     return;
   }
   if (step.id === "linked" && connected && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
+    const operate = $("[data-inspect-group='operate']", $("#modal-panel"));
+    if (operate) operate.open = true;
     $("[data-ore]:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
   }
 }
@@ -482,7 +552,8 @@ function attemptPlace(tile, quiet = false) {
     }
     return false;
   }
-  effects.burst(tile, "install");
+  effects.burst(tile, "install", 10);
+  effects.shockwave(tile, "install");
   effects.pulse(tile, "install");
   effects.sound("place");
   logActivity(`${def.name} 설치`);
@@ -497,7 +568,8 @@ function attemptRemove(tile) {
     effects.sound("error");
     return;
   }
-  effects.burst(tile, "demolish");
+  effects.burst(tile, "demolish", 10);
+  effects.shockwave(tile, "demolish");
   effects.sound("click");
   logActivity(`${result.def?.name || "설비"} 철거 · 전액 회수`);
   toast("설치 재료와 내용물을 회수했습니다", "success");
@@ -511,7 +583,8 @@ function attemptRemovePower(tile) {
     effects.sound("error");
     return;
   }
-  effects.burst(tile, "demolish");
+  effects.burst(tile, "demolish", 8);
+  effects.shockwave(tile, "demolish");
   effects.sound("click");
   logActivity("전봇대 철거 · 같은 칸 설비 유지");
   toast("전봇대 재료를 회수했습니다", "success");
@@ -539,7 +612,9 @@ function completeMining(tile) {
   store.add(ore, 1, "manual-mining");
   store.incrementStat("mined");
   effects.text(tile, `+${ORE_LABEL[ore]}`, `item-${ore}`);
-  effects.burst(tile, "ore", 5);
+  effects.burst(tile, `ore ore-${ore}`, 9);
+  effects.shockwave(tile, "ore");
+  effects.pulse(tile, "active");
   effects.sound("mine");
   if (Math.random() < BALANCE.mining.stoneBonusChance) {
     store.add("stone", 1, "mining-bonus");
@@ -601,7 +676,8 @@ function completeHoldPickup(tile, kind) {
   ui.holdProgress = 0;
   if (!count) return;
   ui.mineGesture = true;
-  effects.burst(tile, "install", 5);
+  effects.burst(tile, "install", 6);
+  effects.shockwave(tile, "install");
   effects.text(tile, `+${count} 화물`, "pickup");
   effects.sound("click");
   logActivity(kind === "cargo" ? "정체 레일 화물 회수" : `화물 창고 ${count}개 회수`);
@@ -790,14 +866,19 @@ function renderMachine() {
   const status = simulation.tileStatus(tile);
   const furnace = building.type === "furnace";
   if (furnace) simulation.normalizeFurnace(building);
-  let detail = "";
+  const previous = detailsOpenState("[data-inspect-group]", "inspectGroup");
+  const openOf = (id, fallback) => (Object.hasOwn(previous, id) ? previous[id] : fallback);
+  const furnaceOres = SMELTABLE.filter((ore) =>
+    store.isDiscovered(ore) || store.count(ore) || building.inputQueue?.includes(ore) || building.smelting === ore
+  );
+  let operate = "";
   if (building.type === "miner") {
-    detail = `
+    operate = `
       <div class="machine-data"><span>출력 대기</span><b id="machine-queue">${queueSummary(building.queue)}</b></div>
       ${minerOutputHtml(building)}
     `;
   } else if (building.type === "furnace") {
-    detail = `
+    operate = `
         <div class="machine-grid">
           <div><small>석탄</small><b id="machine-coal">${building.coal}/${simulation.coalCap(building)}</b></div>
           <div><small>대기열</small><b id="machine-input">${building.inputQueue.length}/${simulation.inputCap(building)}</b></div>
@@ -807,20 +888,19 @@ function renderMachine() {
         <div class="manual-controls">
           <button type="button" class="primary-btn" data-coal ${store.count("coal") && building.coal < simulation.coalCap(building) ? "" : "disabled"}>석탄 직접 보충</button>
           <div class="ore-controls">
-            ${SMELTABLE.map((ore) => `<button type="button" data-ore="${ore}" ${store.count(ore) && building.inputQueue.length < simulation.inputCap(building) ? "" : "disabled"}>${store.displayName(ore)}</button>`).join("")}
+            ${furnaceOres.map((ore) => `<button type="button" data-ore="${ore}" ${store.count(ore) && building.inputQueue.length < simulation.inputCap(building) ? "" : "disabled"}>${store.displayName(ore)}</button>`).join("")}
           </div>
         </div>
         <label class="setting-row">
           <span><b>제련 불가 화물 정체</b><small>이 화로가 받지 못한 화물을 레일에서 대기</small></span>
           <input type="checkbox" data-furnace-setting="blockUnsmeltedCargo" ${building.blockUnsmeltedCargo ? "checked" : ""}>
         </label>
-        ${railEditorHtml(tile)}
     `;
   } else if (building.type === "router") {
     normalizeRouter(building);
     const selectedRoutes = new Set(Object.values(building.routes).filter(Boolean));
     const routableItems = ITEMS.filter((item) => store.isDiscovered(item.id) || selectedRoutes.has(item.id));
-    detail = `
+    operate = `
       <div class="router-routes">
         ${Object.entries(RAIL_DIRECTIONS).map(([direction, info]) => `
           <label>
@@ -835,17 +915,16 @@ function renderMachine() {
         `).join("")}
       </div>
       <p class="rail-help">각 방향에 화물을 지정합니다. 미지정 화물은 레일 AUTO 규칙을 따릅니다.</p>
-      ${railEditorHtml(tile)}
     `;
   } else if (building.type === "storage") {
-    detail = `
+    operate = `
       <div class="machine-data">
         <span>보관 화물 · 무제한 · 타일을 길게 눌러 전량 회수</span>
         <b>${stackSummary(building.stacks)}</b>
       </div>
     `;
   } else if (building.type === "generator") {
-    detail = `
+    operate = `
       <div class="machine-grid">
         <div><small>석탄</small><b>${building.coal}/${simulation.coalCap(building)}</b></div>
         <div><small>연소</small><b>${Math.ceil(building.fuelLeft || 0)}초</b></div>
@@ -855,7 +934,7 @@ function renderMachine() {
     `;
   } else if (building.type === "battery") {
     const capacity = BALANCE.power.batteryCapacity[building.tier] || BALANCE.power.batteryCapacity[1];
-    detail = `<div class="machine-data"><span>저장 전력</span><b id="machine-charge">${Math.floor(building.charge || 0)} / ${capacity}</b></div>`;
+    operate = `<div class="machine-data"><span>저장 전력</span><b id="machine-charge">${Math.floor(building.charge || 0)} / ${capacity}</b></div>`;
   } else if (building.type === "lab") {
     normalizeLab(building);
     const stockRows = LAB_INPUTS.map((id) => {
@@ -874,7 +953,7 @@ function renderMachine() {
       const canInsert = store.count(id) > 0 && amount < cap;
       return `<button type="button" data-lab-item="${id}" ${canInsert ? "" : "disabled"}>${store.displayName(id)} 보충</button>`;
     }).join("");
-    detail = `
+    operate = `
       <div class="machine-data">
         <span>연구 생산 진행</span>
         <b>${Math.round((building.progress || 0) * 100)}%</b>
@@ -889,11 +968,10 @@ function renderMachine() {
           `<span>${store.displayName(id)} ${amount}</span>`).join("")}</div>
       </div>
     `;
-  } else if (building.type === "rail") {
-    detail = railEditorHtml(tile);
-  } else {
-    detail = `<p class="modal-note">지역 전력망 연결 설비입니다.</p>`;
+  } else if (building.type !== "rail") {
+    operate = `<p class="modal-note">지역 전력망 연결 설비입니다.</p>`;
   }
+  const railBody = tile.rail ? railEditorHtml(tile) : "";
   const upgradeTargets = [{ layer: building === tile.rail ? "rail" : "building", target: building }];
   if (tile.rail && tile.rail !== building) upgradeTargets.push({ layer: "rail", target: tile.rail });
   const upgradeMarkup = upgradeTargets.map(({ layer, target }) => {
@@ -913,6 +991,7 @@ function renderMachine() {
       <button type="button" class="secondary-btn" data-upgrade-layer="${layer}">${upgradeDef.name} 업그레이드</button>
     `;
   }).join("");
+  const railDefaultOpen = building.type === "rail" && !operate;
   $("#modal-content").innerHTML = `
     <p class="eyebrow">MACHINE INSPECTOR</p>
     <h2 id="modal-title">${def?.name || building.type} · T${building.tier || 1}</h2>
@@ -920,8 +999,9 @@ function renderMachine() {
     <div class="machine-status status-${status.state}"><i></i><span id="machine-status">${status.label}</span></div>
     <div class="machine-progress"><i id="machine-progress" style="width:${Math.round((building.progress || 0) * 100)}%"></i></div>
     ${powerUsageHtml(tile, building)}
-    ${detail}
-    ${upgradeMarkup}
+    ${detailsMarkup("inspect-group", "inspect-group", "operate", "운전", "투입 · 방향 · 설정", operate, openOf("operate", Boolean(operate)))}
+    ${detailsMarkup("inspect-group", "inspect-group", "rail", "레일", "포트 · 출구", railBody, openOf("rail", railDefaultOpen))}
+    ${detailsMarkup("inspect-group", "inspect-group", "upgrade", "업그레이드", "다음 티어", upgradeMarkup, openOf("upgrade", false))}
     <button type="button" class="danger-btn" ${powerOnly ? "data-remove-power" : "data-remove"} data-confirm="false">
       ${powerOnly ? "전봇대 철거 · 전력망만 회수" : "설비 철거 · 전액 회수"}
     </button>
@@ -1289,7 +1369,8 @@ function handleGridClick(event) {
     const cargo = simulation.pickupStoppedCargo(tile);
     const count = ground + output + cargo;
     if (count) {
-      effects.burst(tile, "install", 5);
+      effects.burst(tile, "install", 6);
+      effects.shockwave(tile, "install");
       effects.text(tile, `+${count} 화물`, "pickup");
       effects.sound("click");
       return;
@@ -1329,6 +1410,7 @@ function handleDocumentClick(event) {
     if (result.ok) {
       toast(`${result.tech.name} 연구 완료`, "success");
       logActivity(`${result.tech.name} 기술 적용`);
+      effects.flash("unlock");
       effects.sound("unlock");
       renderPanels();
     } else {
@@ -1408,6 +1490,10 @@ async function handleModalClick(event) {
     const result = simulation.upgrade(ui.modalTile, upgradeButton.dataset.upgradeLayer);
     if (result.ok) {
       toast(`${result.def.name} 업그레이드 완료`, "success");
+      effects.burst(ui.modalTile, "install", 8);
+      effects.shockwave(ui.modalTile, "install");
+      effects.pulse(ui.modalTile, "install");
+      effects.flash("unlock");
       effects.sound("unlock");
       renderMachine();
       renderCraft();
@@ -1661,6 +1747,7 @@ function bindEvents() {
       toast(`구역 확장 완료 · -$${detail.cost}`, "success");
       logActivity(`${detail.direction.toUpperCase()} 방향 구역 확장`);
       $("#map-frame").classList.add("expanding");
+      effects.flash("expand");
       setTimeout(() => $("#map-frame").classList.remove("expanding"), 700);
     }
   });
@@ -1675,30 +1762,44 @@ function bindEvents() {
   bus.on("cargoSold", ({ tile, gained }) => {
     effects.text(tile, `+$${gained}`, "sale");
     effects.pulse(tile, "sale");
+    effects.burst(tile, "sale", 10);
+    effects.shockwave(tile, "sale");
+    effects.flash("sale");
     effects.sound("sell");
     refreshTutorialTiles();
   });
   bus.on("discover", ({ id }) => {
     toast(`${itemName(id)} 발견`, "success");
     logActivity(`신규 자원 확인 · ${itemName(id)}`);
+    effects.flash("unlock");
   });
   bus.on("machineCycle", ({ tile, type, item }) => {
     if (type === "smelt") {
-      effects.burst(tile, "heat", 6);
+      effects.burst(tile, "heat", 10);
+      effects.shockwave(tile, "heat");
       effects.text(tile, `+${itemName(item)}`, "smelt");
       effects.sound("smelt");
     } else if (type === "research") {
-      effects.text(tile, "+연구점", "smelt");
+      effects.burst(tile, "research", 8);
+      effects.shockwave(tile, "research");
+      effects.pulse(tile, "research");
+      effects.text(tile, "+연구점", "research");
+      effects.flash("research");
       effects.sound("unlock");
-    } else effects.pulse(tile, "active");
+    } else {
+      effects.burst(tile, "spark", 5);
+      effects.pulse(tile, "active");
+    }
   });
   bus.on("groundDrop", ({ tile }) => {
-    effects.burst(tile, "ore", 4);
+    effects.burst(tile, "ore", 6);
+    effects.shockwave(tile, "ore");
     logActivity("막다른 레일에서 화물 바닥 드롭");
   });
   bus.on("questComplete", ({ quest }) => {
     toast(`퀘스트 완료 · ${quest.name}`, "success");
     logActivity(`${quest.name} 완료 · 보상 지급`);
+    effects.flash("unlock");
     effects.sound("unlock");
   });
   bus.on("powerChanged", () => {

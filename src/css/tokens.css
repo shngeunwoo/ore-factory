@@ -70,6 +70,11 @@ body::before {
   opacity: 0.28;
   background-image: linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px);
   background-size: 100% 4px;
+  animation: scanline-drift 12s linear infinite;
+}
+
+@keyframes scanline-drift {
+  to { background-position: 0 48px; }
 }
 
 button,

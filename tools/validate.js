@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   BALANCE,
   BUILDINGS,
+  CRAFT_GROUPS,
   CRAFT_ORDER,
   INGOT_IDS,
   ITEMS,
@@ -95,6 +96,9 @@ for (const relativePath of sourceFiles) {
 
 for (const id of CRAFT_ORDER) {
   if (!BUILDINGS[id]) fail(`CRAFT_ORDER references missing building ${id}`);
+}
+if (CRAFT_GROUPS.flatMap((group) => group.ids).join() !== CRAFT_ORDER.join()) {
+  fail("CRAFT_GROUPS must list the same ids as CRAFT_ORDER");
 }
 for (const item of ITEMS) {
   if (!Object.hasOwn(SELL, item.id)) fail(`SELL missing ${item.id}`);

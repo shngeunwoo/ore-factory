@@ -1,4 +1,4 @@
-import { QUESTS, TECHNOLOGIES, itemName } from "../domain/recipes.js?v=32";
+import { QUESTS, TECHNOLOGIES, itemName } from "../domain/recipes.js?v=36";
 
 function rewardText(reward = {}) {
   const parts = [];

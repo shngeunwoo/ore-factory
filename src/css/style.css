@@ -1,4 +1,4 @@
 @import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
-@import url("./tokens.css");
-@import url("./layout.css");
-@import url("./game.css");
+@import url("./tokens.css?v=36");
+@import url("./layout.css?v=36");
+@import url("./game.css?v=36");

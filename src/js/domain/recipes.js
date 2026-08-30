@@ -173,10 +173,28 @@ export const BUILDINGS = {
   },
 };
 
-export const CRAFT_ORDER = Object.freeze([
-  "rail_1", "furnace", "miner_1", "storage_1", "router_1",
-  "generator_1", "pole_1", "battery_1", "lab_1",
+export const CRAFT_GROUPS = Object.freeze([
+  Object.freeze({
+    id: "logistics",
+    name: "물류",
+    hint: "레일 · 창고 · 분배",
+    ids: Object.freeze(["rail_1", "storage_1", "router_1"]),
+  }),
+  Object.freeze({
+    id: "production",
+    name: "생산",
+    hint: "화로 · 채굴 · 연구",
+    ids: Object.freeze(["furnace", "miner_1", "lab_1"]),
+  }),
+  Object.freeze({
+    id: "power",
+    name: "전력",
+    hint: "발전 · 전봇대 · 축전",
+    ids: Object.freeze(["generator_1", "pole_1", "battery_1"]),
+  }),
 ]);
+
+export const CRAFT_ORDER = Object.freeze(CRAFT_GROUPS.flatMap((group) => group.ids));
 
 export const TECHNOLOGIES = Object.freeze({
   automation: {
