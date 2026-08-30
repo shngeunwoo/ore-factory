@@ -17,9 +17,9 @@ import {
   nextTutorialStep,
   powerDraw,
   TUTORIAL_STEPS,
-} from "../domain/recipes.js?v=28";
-import { EventBus, GameStore } from "../game/inventory.js?v=28";
-import { World, tileKey } from "../game/map.js?v=28";
+} from "../domain/recipes.js?v=29";
+import { EventBus, GameStore } from "../game/inventory.js?v=29";
+import { World, tileKey } from "../game/map.js?v=29";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -27,7 +27,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=28";
+} from "../game/buildings.js?v=29";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -37,12 +37,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=28";
-import { PowerSystem } from "../game/power.js?v=28";
-import { ProgressionSystem } from "../game/progression.js?v=28";
-import { Effects } from "./fx.js?v=28";
-import { MapView } from "./map-view.js?v=28";
-import { questMarkup, researchMarkup } from "./panels.js?v=28";
+} from "../game/persistence.js?v=29";
+import { PowerSystem } from "../game/power.js?v=29";
+import { ProgressionSystem } from "../game/progression.js?v=29";
+import { Effects } from "./fx.js?v=29";
+import { MapView } from "./map-view.js?v=29";
+import { questMarkup, researchMarkup } from "./panels.js?v=29";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];

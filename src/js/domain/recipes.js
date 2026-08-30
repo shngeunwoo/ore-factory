@@ -20,15 +20,15 @@ export const ITEMS = [
 ];
 
 export const SELL = {
-  stone: 1, coal: 3, iron: 5, copper: 6, tin: 5, zinc: 6, lead: 7,
-  nickel: 9, silver: 10, gold: 14, iron_ingot: 15, copper_ingot: 18,
-  tin_ingot: 16, zinc_ingot: 18, lead_ingot: 21, nickel_ingot: 26,
-  silver_ingot: 31, gold_ingot: 41,
+  stone: 1, coal: 3, iron: 5, copper: 6, tin: 4, zinc: 5, lead: 6,
+  nickel: 7, silver: 8, gold: 11, iron_ingot: 12, copper_ingot: 14,
+  tin_ingot: 13, zinc_ingot: 15, lead_ingot: 17, nickel_ingot: 21,
+  silver_ingot: 25, gold_ingot: 33,
 };
 
 export const MINE_TIME = {
-  stone: 0.55, coal: 0.7, iron: 0.85, copper: 0.9, tin: 1.09,
-  zinc: 1.15, lead: 1.27, nickel: 1.38, silver: 1.5, gold: 1.67,
+  stone: 0.55, coal: 0.7, iron: 0.85, copper: 0.9, tin: 1.24,
+  zinc: 1.3, lead: 1.43, nickel: 1.56, silver: 1.69, gold: 1.89,
 };
 
 export const ORE_TO_INGOT = {
@@ -57,16 +57,16 @@ export const BALANCE = Object.freeze({
     initialSize: 9,
     shopOrigin: 4,
     shopStep: 9,
-    emptyChance: 0.84,
+    emptyChance: 0.9,
     oreSpacing: 2,
-    midFromExpand: 2,
-    advancedFromExpand: 5,
+    midFromExpand: 4,
+    advancedFromExpand: 8,
   },
   mining: { stoneBonusChance: 0.5, frameDtCap: 0.05 },
-  miner: { interval: { 1: 2.5, 2: 1.5, 3: 0.8 }, queueCap: 6 },
-  rail: { interval: { 1: 0.4, 2: 0.25, 3: 0.12 } },
+  miner: { interval: { 1: 2.5, 2: 1.8, 3: 1.15 }, queueCap: 6 },
+  rail: { interval: { 1: 0.4, 2: 0.32, 3: 0.2 } },
   smelt: {
-    time: { 1: 2.2, 2: 1.25, 3: 0.65 },
+    time: { 1: 2.2, 2: 1.55, 3: 0.95 },
     inputCap: { 1: 2, 2: 4, 3: 8 },
     coalCap: { 1: 8, 2: 16, 3: 32 },
   },
@@ -75,7 +75,7 @@ export const BALANCE = Object.freeze({
   ground: { stackCap: 999 },
   power: {
     generatorOutput: { 1: 12, 2: 24, 3: 48 },
-    fuelSeconds: 20,
+    fuelSeconds: 16,
     batteryCapacity: { 1: 60, 2: 180, 3: 480 },
     draw: {
       rail: { 1: 0, 2: 1, 3: 2 },
@@ -85,11 +85,11 @@ export const BALANCE = Object.freeze({
     },
   },
   research: {
-    labSecondsPerPoint: 3,
-    labCostPerPoint: { stone: 100, coal: 25, iron_ingot: 20, copper_ingot: 20 },
-    labBufferCap: { stone: 400, coal: 100, iron_ingot: 80, copper_ingot: 80 },
+    labSecondsPerPoint: 4,
+    labCostPerPoint: { stone: 180, coal: 40, iron_ingot: 36, copper_ingot: 36 },
+    labBufferCap: { stone: 720, coal: 160, iron_ingot: 144, copper_ingot: 144 },
   },
-  expand: { base: 28, growth: 1.5 },
+  expand: { base: 45, growth: 1.7 },
   zoom: { min: 38, max: 72, step: 6, initial: 54 },
 });
 
@@ -143,32 +143,32 @@ export const BUILDINGS = {
   },
   rail_2: {
     id: "rail_2", name: "중급 레일", type: "rail", tier: 2,
-    unlockCost: 0, craft: { iron_ingot: 3, copper_ingot: 2, stone: 6 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 4, copper_ingot: 3, stone: 8 }, place: "upgrade",
     description: "전력 1을 소비해 초급보다 빠르게 화물을 운반합니다.",
   },
   miner_2: {
     id: "miner_2", name: "중급 채굴기", type: "miner", tier: 2,
-    unlockCost: 0, craft: { iron_ingot: 6, copper_ingot: 3, stone: 10 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 8, copper_ingot: 4, stone: 14 }, place: "upgrade",
     description: "전력 3을 소비하는 고속 자동 채굴기입니다.",
   },
   furnace_2: {
     id: "furnace_2", name: "중급 인라인 화로", type: "furnace", tier: 2,
-    unlockCost: 0, craft: { iron_ingot: 5, copper_ingot: 3, stone: 8 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 7, copper_ingot: 4, stone: 12 }, place: "upgrade",
     description: "전력 4를 소비하며 더 빠르고 연료 버퍼가 큽니다.",
   },
   rail_3: {
     id: "rail_3", name: "고급 레일", type: "rail", tier: 3,
-    unlockCost: 0, craft: { iron_ingot: 5, nickel_ingot: 2, stone: 10 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 7, nickel_ingot: 3, stone: 14 }, place: "upgrade",
     description: "전력 2를 소비하는 최고 속도 화물 레일입니다.",
   },
   miner_3: {
     id: "miner_3", name: "고급 채굴기", type: "miner", tier: 3,
-    unlockCost: 0, craft: { iron_ingot: 10, nickel_ingot: 4, stone: 20 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 14, nickel_ingot: 6, stone: 28 }, place: "upgrade",
     description: "전력 6을 소비하는 최고 속도 자동 채굴기입니다.",
   },
   furnace_3: {
     id: "furnace_3", name: "고급 인라인 화로", type: "furnace", tier: 3,
-    unlockCost: 0, craft: { iron_ingot: 8, nickel_ingot: 3, silver_ingot: 2, stone: 16 }, place: "upgrade",
+    unlockCost: 0, craft: { iron_ingot: 11, nickel_ingot: 4, silver_ingot: 3, stone: 22 }, place: "upgrade",
     description: "전력 8을 소비하는 최고 속도 인라인 화로입니다.",
   },
 };
@@ -204,11 +204,11 @@ export const TECHNOLOGIES = Object.freeze({
     unlocks: ["lab_1"], description: "버퍼 자원과 전력으로 연구점을 생산하는 연구소를 해금합니다.",
   },
   tier_2: {
-    id: "tier_2", name: "중급 공정", cost: 10, requires: ["routing", "power"],
+    id: "tier_2", name: "중급 공정", cost: 14, requires: ["routing", "power"],
     unlocks: ["rail_2", "miner_2", "furnace_2"], description: "전력을 쓰는 레일·채굴기·화로 T2 업그레이드.",
   },
   tier_3: {
-    id: "tier_3", name: "고급 공정", cost: 16, requires: ["tier_2", "battery"],
+    id: "tier_3", name: "고급 공정", cost: 22, requires: ["tier_2", "battery"],
     unlocks: ["rail_3", "miner_3", "furnace_3"], description: "더 많은 전력을 쓰는 레일·채굴기·화로 T3 업그레이드.",
   },
 });
@@ -220,6 +220,9 @@ export const QUESTS = Object.freeze([
   { id: "smelt_3", name: "정제 공정", metric: "smeltedCount", target: 3, reward: { money: 40, research: 4 } },
   { id: "power_1", name: "점화", metric: "powered", target: 1, reward: { items: { copper_ingot: 2 }, research: 5 } },
   { id: "research_3", name: "기술 확장", metric: "researchedCount", target: 3, reward: { money: 80, research: 6 } },
+  { id: "smelt_25", name: "제련 라인", metric: "smeltedCount", target: 25, reward: { items: { coal: 20 } } },
+  { id: "transport_50", name: "물류망", metric: "transported", target: 50, reward: { money: 150 } },
+  { id: "expand_6", name: "광맥 개척", metric: "expanded", target: 6, reward: { money: 120 } },
 ]);
 
 export const UPGRADE_DEFS = Object.freeze({
