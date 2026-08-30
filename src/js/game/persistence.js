@@ -1,4 +1,4 @@
-import { BALANCE } from "../domain/recipes.js?v=31";
+import { BALANCE } from "../domain/recipes.js?v=32";
 
 export const SAVE_KEY = "ore-factory.save.v2";
 export const LEGACY_SAVE_KEY = "ore-factory.save";

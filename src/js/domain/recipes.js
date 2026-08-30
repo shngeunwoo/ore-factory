@@ -259,7 +259,7 @@ export const TUTORIAL_STEPS = Object.freeze([
   {
     id: "collected",
     title: "주괴 회수",
-    copy: "노란 칸을 누르거나 화로 창의 「주괴 전부 회수」를 누르세요. 구운 주괴를 인벤으로 가져옵니다.",
+    copy: "노란 칸을 누르세요. 구운 주괴가 인벤으로 들어옵니다.",
     hint: { tiles: "collect" },
   },
   {
@@ -271,7 +271,7 @@ export const TUTORIAL_STEPS = Object.freeze([
   {
     id: "researched",
     title: "자동 채굴 연구",
-    copy: "광석을 5개 캐면 퀘스트 「첫 채굴」로 연구점 2점이 들어옵니다. 노란 「연구」에서 「자동 채굴」을 연구하세요.",
+    copy: "노란 「연구」에서 「자동 채굴」을 연구하세요. 연구점은 이 단계에서 채워 줍니다.",
     hint: { panel: "research", tech: "automation" },
   },
   {
@@ -285,6 +285,7 @@ export const TUTORIAL_STEPS = Object.freeze([
 export const TUTORIAL_KITS = Object.freeze({
   railed: Object.freeze({ stone: 24 }),
   smelted: Object.freeze({ stone: 12, coal: 8, iron: 4 }),
+  researched: Object.freeze({ research: 2 }),
   miner: Object.freeze({ iron_ingot: 2, stone: 10 }),
 });
 

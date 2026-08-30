@@ -1,5 +1,5 @@
-import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=31";
-import { labTakeCost, normalizeLab, progressPaintChanged } from "./buildings.js?v=31";
+import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=32";
+import { labTakeCost, normalizeLab, progressPaintChanged } from "./buildings.js?v=32";
 
 export class ProgressionSystem {
   constructor(bus, store, world, power = null) {

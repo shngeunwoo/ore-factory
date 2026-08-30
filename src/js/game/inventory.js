@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, INGOT_IDS, ITEMS, SELL, TECHNOLOGIES, TUTORIAL_KITS, createTutorialProgress, itemName, tutorialKeepsFurnaceFuel } from "../domain/recipes.js?v=31";
+import { BALANCE, BUILDINGS, INGOT_IDS, ITEMS, SELL, TECHNOLOGIES, TUTORIAL_KITS, createTutorialProgress, itemName, tutorialKeepsFurnaceFuel } from "../domain/recipes.js?v=32";
 
 export class EventBus {
   constructor() {
@@ -99,6 +99,11 @@ export class GameStore {
     if (!kit || this.state.settings.tutorialSkipped) return false;
     let given = false;
     Object.entries(kit).forEach(([id, amount]) => {
+      if (id === "research") {
+        const need = Math.max(0, amount - this.state.research.points);
+        if (need > 0 && this.addResearch(need, "tutorial")) given = true;
+        return;
+      }
       const need = Math.max(0, amount - this.count(id));
       if (need > 0 && this.add(id, need, "tutorial")) given = true;
     });

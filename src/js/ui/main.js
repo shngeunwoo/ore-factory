@@ -18,9 +18,9 @@ import {
   powerDraw,
   TUTORIAL_STEPS,
   tutorialComplete,
-} from "../domain/recipes.js?v=31";
-import { EventBus, GameStore } from "../game/inventory.js?v=31";
-import { World, tileKey } from "../game/map.js?v=31";
+} from "../domain/recipes.js?v=32";
+import { EventBus, GameStore } from "../game/inventory.js?v=32";
+import { World, tileKey } from "../game/map.js?v=32";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -28,7 +28,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=31";
+} from "../game/buildings.js?v=32";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -38,12 +38,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=31";
-import { PowerSystem } from "../game/power.js?v=31";
-import { ProgressionSystem } from "../game/progression.js?v=31";
-import { Effects } from "./fx.js?v=31";
-import { MapView } from "./map-view.js?v=31";
-import { questMarkup, researchMarkup } from "./panels.js?v=31";
+} from "../game/persistence.js?v=32";
+import { PowerSystem } from "../game/power.js?v=32";
+import { ProgressionSystem } from "../game/progression.js?v=32";
+import { Effects } from "./fx.js?v=32";
+import { MapView } from "./map-view.js?v=32";
+import { questMarkup, researchMarkup } from "./panels.js?v=32";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -259,9 +259,11 @@ function renderCraft() {
 }
 
 function renderResearch() {
+  const step = currentTutorialStep();
   $("#research-list").innerHTML = researchMarkup({
     state: store.state,
     availableTech: (id) => progression.availableTech(id),
+    lockExcept: step?.id === "researched" ? "automation" : null,
   });
   applyTutorialHud();
 }
@@ -332,10 +334,6 @@ function applyTutorialHud() {
     const building = ui.modalTile.building;
     if ((building.coal || 0) < 1) $("[data-coal]", $("#modal-panel"))?.classList.add("tutorial-spot");
     else $("[data-ore]:not(:disabled)", $("#modal-panel"))?.classList.add("tutorial-spot");
-    return;
-  }
-  if (step.id === "collected" && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
-    $("[data-output]", $("#modal-panel"))?.classList.add("tutorial-spot");
     return;
   }
   if (step.id === "sold" && ui.modal === "shop") {
@@ -811,7 +809,6 @@ function renderMachine() {
           <div class="ore-controls">
             ${SMELTABLE.map((ore) => `<button type="button" data-ore="${ore}" ${store.count(ore) && building.inputQueue.length < simulation.inputCap(building) ? "" : "disabled"}>${store.displayName(ore)}</button>`).join("")}
           </div>
-          <button type="button" class="secondary-btn" data-output ${simulation.outputCount(building) ? "" : "disabled"}>주괴 전부 회수</button>
         </div>
         <label class="setting-row">
           <span><b>제련 불가 화물 정체</b><small>이 화로가 받지 못한 화물을 레일에서 대기</small></span>
@@ -975,8 +972,6 @@ function updateMachine() {
     $$("[data-ore]", $("#modal-panel")).forEach((button) => {
       button.disabled = !(store.count(button.dataset.ore) && building.inputQueue.length < simulation.inputCap(building));
     });
-    const outputButton = $("[data-output]", $("#modal-panel"));
-    if (outputButton) outputButton.disabled = !simulation.outputCount(building);
   }
   if (building.type === "battery" && $("#machine-charge")) {
     const capacity = BALANCE.power.batteryCapacity[building.tier] || BALANCE.power.batteryCapacity[1];
@@ -1288,12 +1283,19 @@ function handleGridClick(event) {
     ui.mineGesture = false;
     return;
   }
-  if (tile.groundItems?.length) {
-    const count = simulation.pickupGroundItems(tile);
-    effects.burst(tile, "install", 5);
-    effects.text(tile, `+${count} 화물`, "pickup");
-    effects.sound("click");
-  } else if (tile.building?.type === "shop") openModal("shop");
+  if (tile.groundItems?.length || simulation.outputCount(tile.building) || simulation.canPickupStoppedCargo(tile)) {
+    const ground = simulation.pickupGroundItems(tile);
+    const output = simulation.takeOutput(tile);
+    const cargo = simulation.pickupStoppedCargo(tile);
+    const count = ground + output + cargo;
+    if (count) {
+      effects.burst(tile, "install", 5);
+      effects.text(tile, `+${count} 화물`, "pickup");
+      effects.sound("click");
+      return;
+    }
+  }
+  if (tile.building?.type === "shop") openModal("shop");
   else if ((tile.building && tile.building.type !== "shop") || tile.rail || tile.powerNode) openModal("machine", tile);
 }
 
@@ -1399,14 +1401,6 @@ async function handleModalClick(event) {
   if (oreButton && ui.modalTile) {
     if (simulation.insertOre(ui.modalTile, oreButton.dataset.ore)) renderMachine();
     else toast("원광을 투입할 수 없습니다", "error");
-    return;
-  }
-  if (event.target.closest("[data-output]") && ui.modalTile) {
-    const count = simulation.takeOutput(ui.modalTile);
-    if (count) {
-      logActivity(`주괴 ${count}개 회수`);
-      renderMachine();
-    } else toast("회수할 주괴가 없습니다", "error");
     return;
   }
   const upgradeButton = event.target.closest("[data-upgrade-layer]");

@@ -100,6 +100,35 @@ test("튜토리얼 재료는 부족한 만큼만 채운다", () => {
   assert.equal(store.grantTutorialKit("railed"), false);
 });
 
+test("연구 키트는 연구점이 부족할 때만 채운다", () => {
+  const { store } = setup();
+  assert.equal(store.state.research.points, 0);
+  assert.equal(store.grantTutorialKit("researched"), true);
+  assert.equal(store.state.research.points, 2);
+  assert.equal(store.grantTutorialKit("researched"), false);
+  store.addResearch(3, "test");
+  assert.equal(store.grantTutorialKit("researched"), false);
+  assert.equal(store.state.research.points, 5);
+});
+
+test("타일 회수는 화로 출력과 바닥 주괴로 collected를 완료한다", () => {
+  const { store, world, simulation } = setup();
+  const furnaceTile = world.get(0, 0);
+  clearTiles(furnaceTile);
+  furnaceTile.building = createBuilding(BUILDINGS.furnace);
+  simulation.normalizeFurnace(furnaceTile.building);
+  furnaceTile.building.outputStack = { iron_ingot: 1 };
+  assert.equal(simulation.takeOutput(furnaceTile), 1);
+  assert.equal(store.state.progress.collected, true);
+
+  store.state.progress.collected = false;
+  const groundTile = world.get(1, 0);
+  clearTiles(groundTile);
+  simulation.dropGroundItem(groundTile, { type: "iron_ingot" }, 1);
+  assert.equal(simulation.pickupGroundItems(groundTile), 1);
+  assert.equal(store.state.progress.collected, true);
+});
+
 test("튜토리얼 제련 구간에서는 석탄이 소모되지 않고 끝나면 소모된다", () => {
   const { store, world, simulation } = setup();
   Object.assign(store.state.progress, { mined: true, sold: true, railed: true });

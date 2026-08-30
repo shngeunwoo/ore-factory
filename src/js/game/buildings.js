@@ -5,7 +5,7 @@ import {
   UPGRADE_DEFS,
   itemName,
   powerDraw,
-} from "../domain/recipes.js?v=31";
+} from "../domain/recipes.js?v=32";
 
 export const RAIL_DIRECTIONS = Object.freeze({
   n: Object.freeze({ dx: 0, dy: -1, opposite: "s", label: "↑" }),
@@ -617,6 +617,7 @@ export class FactorySimulation {
     if (!this.canPickupStoppedCargo(tile)) return 0;
     const item = tile.cargo;
     if (!this.store.add(item.type, 1, "rail-pickup")) return 0;
+    if (Object.values(ORE_TO_INGOT).includes(item.type)) this.store.markProgress("collected");
     tile.cargo = null;
     tile.moveAcc = 0;
     this.changedTile(tile, "cargo-pickup");

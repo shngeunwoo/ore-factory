@@ -1,4 +1,4 @@
-import { BALANCE, powerDraw } from "../domain/recipes.js?v=31";
+import { BALANCE, powerDraw } from "../domain/recipes.js?v=32";
 
 const CORE_TYPES = new Set(["generator", "pole", "battery"]);
 
