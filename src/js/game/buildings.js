@@ -5,7 +5,7 @@ import {
   UPGRADE_DEFS,
   itemName,
   powerDraw,
-} from "../domain/recipes.js?v=29";
+} from "../domain/recipes.js?v=30";
 
 export const RAIL_DIRECTIONS = Object.freeze({
   n: Object.freeze({ dx: 0, dy: -1, opposite: "s", label: "↑" }),
@@ -357,7 +357,8 @@ export class FactorySimulation {
     else if (def.type === "pole") tile.powerNode = instance;
     else tile.building = instance;
     this.invalidatePaths();
-    this.store.state.progress.automated = true;
+    if (def.type === "rail") this.store.markProgress("railed");
+    if (def.type === "miner") this.store.markProgress("miner");
     this.store.incrementStat("placed");
     this.changedTile(tile, "place");
     this.bus.emit("buildingPlaced", { tile, def });

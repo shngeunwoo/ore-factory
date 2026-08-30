@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, ITEMS, SELL, TECHNOLOGIES, itemName } from "../domain/recipes.js?v=29";
+import { BALANCE, BUILDINGS, ITEMS, SELL, TECHNOLOGIES, createTutorialProgress, itemName } from "../domain/recipes.js?v=30";
 
 export class EventBus {
   constructor() {
@@ -32,7 +32,7 @@ export function createInitialState() {
       mined: 0, sold: 0, soldItems: 0, expanded: 0, placed: 0,
       transported: 0, smeltedCount: 0, powered: 0, researchedCount: 0,
     },
-    progress: { mined: false, sold: false, smelted: false, automated: false },
+    progress: createTutorialProgress(),
     research: { points: 0, completed: {} },
     quests: { progress: {}, completed: {} },
     power: { generated: 0, supplied: 0, demand: 0, stored: 0, capacity: 0, networks: 0 },
@@ -65,7 +65,7 @@ export class GameStore {
       unlocked: { ...fresh.unlocked, ...(snapshot?.unlocked || {}) },
       discovered: { ...fresh.discovered, ...(snapshot?.discovered || {}) },
       stats: { ...fresh.stats, ...(snapshot?.stats || {}) },
-      progress: { ...fresh.progress, ...(snapshot?.progress || {}) },
+      progress: createTutorialProgress(snapshot?.progress),
       research: {
         points: Math.max(0, Math.floor(Number(snapshot?.research?.points) || 0)),
         completed: { ...(snapshot?.research?.completed || {}) },
@@ -77,6 +77,21 @@ export class GameStore {
       power: { ...fresh.power, ...(snapshot?.power || {}) },
       settings: { ...fresh.settings, ...(snapshot?.settings || {}) },
     };
+    if (this.state.research.completed.automation) this.state.progress.researched = true;
+  }
+
+  adoptWorldProgress(world) {
+    world?.forEach?.((tile) => {
+      if (tile.rail) this.state.progress.railed = true;
+      if (tile.building?.type === "miner") this.state.progress.miner = true;
+    });
+  }
+
+  markProgress(id) {
+    if (!Object.hasOwn(this.state.progress, id) || this.state.progress[id]) return false;
+    this.state.progress[id] = true;
+    this.changed("progress");
+    return true;
   }
 
   snapshot() {
@@ -166,7 +181,7 @@ export class GameStore {
     this.addMoney(gained, "sale");
     this.state.stats.sold += gained;
     this.state.stats.soldItems += count;
-    this.state.progress.sold = true;
+    this.markProgress("sold");
     this.bus.emit("sale", { id, amount: count, gained, source });
     this.changed("sale");
     return { amount: count, gained };
@@ -218,6 +233,7 @@ export class GameStore {
       this.state.unlocked[buildingId] = true;
     });
     this.state.stats.researchedCount += 1;
+    if (id === "automation") this.markProgress("researched");
     this.bus.emit("researchComplete", { id, tech });
     this.changed("research");
     return { ok: true, tech };
@@ -226,14 +242,13 @@ export class GameStore {
   incrementStat(key, amount = 1) {
     if (!Object.hasOwn(this.state.stats, key)) return;
     this.state.stats[key] += amount;
-    if (key === "mined") this.state.progress.mined = true;
+    if (key === "mined") this.markProgress("mined");
     this.changed("stats");
   }
 
   markSmelted() {
-    this.state.progress.smelted = true;
     this.state.stats.smeltedCount += 1;
-    this.changed("progress");
+    if (!this.markProgress("smelted")) this.changed("progress");
   }
 
   updateSetting(key, value) {

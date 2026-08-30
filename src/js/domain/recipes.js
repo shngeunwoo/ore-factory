@@ -235,27 +235,69 @@ export const TUTORIAL_STEPS = Object.freeze([
   {
     id: "mined",
     title: "광석 채굴",
-    copy: "광석 칸을 길게 누르세요. 게이지가 차면 자원이 들어옵니다.",
+    copy: "맵에서 빛나는 광석 칸을 손가락이나 마우스로 길게 누르세요. 고리가 차면 자원이 들어옵니다. 철·구리 원광도 몇 개 캐 두면 제련에 씁니다.",
+    hint: { tiles: "ore" },
   },
   {
     id: "sold",
     title: "상점 판매",
-    copy: "가운데 3×3 상점을 클릭하고 자원을 파세요. 돈이 생깁니다.",
+    copy: "맵 한가운데 빛나는 3×3 상점을 누르세요. 창이 열리면 돌이나 석탄 줄의 빛나는 판매 버튼을 누르세요. 크레딧이 생깁니다.",
+    hint: { tiles: "shop" },
+  },
+  {
+    id: "railed",
+    title: "레일 설치",
+    copy: "오른쪽(모바일은 제작)에서 빛나는 「건설」과 「초급 레일」을 눌러 설치 모드를 켭니다. 그다음 상점 옆 빛나는 빈 땅을 누르거나 누른 채로 끌어 깔세요. 재료는 돌 2개입니다.",
+    hint: { tiles: "empty", panel: "craft", place: "rail_1" },
   },
   {
     id: "smelted",
     title: "첫 주괴",
-    copy: "빈 땅에 레일, 그 위에 화로. 석탄과 원광을 넣으면 주괴가 나옵니다.",
+    copy: "건설에서 빛나는 「인라인 화로」를 누른 뒤, 빛나는 레일 칸 위에 놓으세요. 화로를 열어 빛나는 석탄 보충과 철·구리 원광 버튼을 누르면 주괴가 나옵니다.",
+    hint: { tiles: "smelt", panel: "craft", place: "furnace", machine: "smelt" },
   },
   {
-    id: "automated",
-    title: "자동화",
-    copy: "레일을 끌어 깔거나 채굴기를 광석 위에 놓으세요.",
+    id: "researched",
+    title: "자동 채굴 연구",
+    copy: "광석을 5개 캐면 퀘스트 「첫 채굴」로 연구점 2점이 들어옵니다. 빛나는 「연구」 탭을 연 다음 빛나는 「자동 채굴」을 연구하세요.",
+    hint: { panel: "research", tech: "automation" },
+  },
+  {
+    id: "miner",
+    title: "채굴기 설치",
+    copy: "건설에서 빛나는 「초급 채굴기」를 누른 뒤, 맵의 빛나는 광석 칸에 놓으세요. 철 주괴 2개와 돌 10개가 필요합니다.",
+    hint: { tiles: "ore", panel: "craft", place: "miner_1" },
   },
 ]);
 
+export function createTutorialProgress(source = {}) {
+  return {
+    mined: Boolean(source.mined),
+    sold: Boolean(source.sold),
+    smelted: Boolean(source.smelted),
+    railed: Boolean(source.railed || source.automated),
+    researched: Boolean(source.researched),
+    miner: Boolean(source.miner),
+  };
+}
+
 export function nextTutorialStep(progress = {}) {
   return TUTORIAL_STEPS.find((step) => !progress[step.id]) || null;
+}
+
+export function tutorialComplete(progress = {}) {
+  return TUTORIAL_STEPS.every((step) => Boolean(progress[step.id]));
+}
+
+export function tutorialTileHint(step, tile) {
+  const kind = step?.hint?.tiles;
+  if (!kind || !tile) return false;
+  const type = tile.building?.type;
+  if (kind === "ore") return Boolean(tile.ore && !tile.building);
+  if (kind === "shop") return type === "shop";
+  if (kind === "empty") return !tile.ore && !tile.building && !tile.rail;
+  if (kind === "smelt") return type === "furnace" || Boolean(tile.rail && !tile.building);
+  return false;
 }
 
 const ITEM_BY_ID = new Map(ITEMS.map((item) => [item.id, item]));

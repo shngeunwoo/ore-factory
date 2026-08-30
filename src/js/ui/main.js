@@ -17,9 +17,10 @@ import {
   nextTutorialStep,
   powerDraw,
   TUTORIAL_STEPS,
-} from "../domain/recipes.js?v=29";
-import { EventBus, GameStore } from "../game/inventory.js?v=29";
-import { World, tileKey } from "../game/map.js?v=29";
+  tutorialComplete,
+} from "../domain/recipes.js?v=30";
+import { EventBus, GameStore } from "../game/inventory.js?v=30";
+import { World, tileKey } from "../game/map.js?v=30";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -27,7 +28,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=29";
+} from "../game/buildings.js?v=30";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -37,12 +38,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=29";
-import { PowerSystem } from "../game/power.js?v=29";
-import { ProgressionSystem } from "../game/progression.js?v=29";
-import { Effects } from "./fx.js?v=29";
-import { MapView } from "./map-view.js?v=29";
-import { questMarkup, researchMarkup } from "./panels.js?v=29";
+} from "../game/persistence.js?v=30";
+import { PowerSystem } from "../game/power.js?v=30";
+import { ProgressionSystem } from "../game/progression.js?v=30";
+import { Effects } from "./fx.js?v=30";
+import { MapView } from "./map-view.js?v=30";
+import { questMarkup, researchMarkup } from "./panels.js?v=30";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -82,7 +83,7 @@ const ui = {
   removeArmed: false,
   craftOpen: false,
   activePanel: "craft",
-  guideCelebrated: Object.values(store.state.progress).every(Boolean),
+  guideCelebrated: tutorialComplete(store.state.progress),
   pendingFileSave: null,
 };
 
@@ -96,6 +97,7 @@ const mapView = new MapView({
     mode: ui.mode,
     def: ui.placeId ? BUILDINGS[ui.placeId] : null,
   }),
+  getTutorial: () => currentTutorialStep(),
 });
 
 const effects = new Effects({
@@ -184,6 +186,7 @@ function renderHud() {
 
 const pendingState = new Set();
 let stateFrame = 0;
+let lastTutorialId = null;
 
 function flushState() {
   stateFrame = 0;
@@ -252,6 +255,7 @@ function renderCraft() {
       </article>
     `;
   }).join("");
+  applyTutorialHud();
 }
 
 function renderResearch() {
@@ -259,6 +263,7 @@ function renderResearch() {
     state: store.state,
     availableTech: (id) => progression.availableTech(id),
   });
+  applyTutorialHud();
 }
 
 function renderQuests() {
@@ -281,6 +286,52 @@ function setActivePanel(panel) {
   });
 }
 
+function currentTutorialStep() {
+  if (store.state.settings.tutorialSkipped) return null;
+  return nextTutorialStep(store.state.progress);
+}
+
+function applyTutorialHud() {
+  $$(".tutorial-spot").forEach((element) => {
+    if (!element.classList.contains("tile")) element.classList.remove("tutorial-spot");
+  });
+  const step = currentTutorialStep();
+  if (!step) return;
+  const hint = step.hint || {};
+  const mobile = matchMedia("(max-width: 900px)").matches;
+  if (hint.panel === "craft") {
+    $('[data-panel="craft"]')?.classList.add("tutorial-spot");
+    if (mobile && !ui.craftOpen && ui.mode !== "place") $('[data-action="craft-toggle"]')?.classList.add("tutorial-spot");
+  }
+  if (hint.panel === "research") {
+    $('[data-panel="research"]')?.classList.add("tutorial-spot");
+    if (mobile && !ui.craftOpen && ui.mode !== "place") $('[data-action="craft-toggle"]')?.classList.add("tutorial-spot");
+  }
+  if (hint.place) $(`[data-place="${hint.place}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+  if (hint.tech) $(`[data-research="${hint.tech}"]`)?.closest(".recipe")?.classList.add("tutorial-spot");
+  if (hint.machine === "smelt" && ui.modal === "machine" && ui.modalTile?.building?.type === "furnace") {
+    $("[data-coal]", $("#modal-panel"))?.classList.add("tutorial-spot");
+    $(".ore-controls", $("#modal-panel"))?.classList.add("tutorial-spot");
+  }
+  if (step.id === "sold" && ui.modal === "shop") {
+    $$(".sell-row:not(.empty)", $("#modal-panel")).forEach((row) => row.classList.add("tutorial-spot"));
+  }
+}
+
+function syncTutorialStep() {
+  const step = currentTutorialStep();
+  const id = step?.id || "";
+  if (id !== lastTutorialId) {
+    lastTutorialId = id;
+    if (step?.hint?.panel) {
+      setActivePanel(step.hint.panel);
+      if (matchMedia("(max-width: 900px)").matches) openCraftPanel();
+    }
+    mapView.renderAll();
+  }
+  applyTutorialHud();
+}
+
 function renderGuide() {
   const next = nextTutorialStep(store.state.progress);
   const completed = TUTORIAL_STEPS.filter((step) => store.state.progress[step.id]).length;
@@ -295,7 +346,7 @@ function renderGuide() {
   }).join("");
   $("#guide-count").textContent = `${completed} / ${TUTORIAL_STEPS.length}`;
   renderTutorial(next);
-  if (completed === TUTORIAL_STEPS.length && !ui.guideCelebrated) {
+  if (tutorialComplete(store.state.progress) && !ui.guideCelebrated) {
     ui.guideCelebrated = true;
     $("#guide").open = false;
     store.updateSetting("tutorialCollapsed", true);
@@ -307,12 +358,16 @@ function renderTutorial(next = nextTutorialStep(store.state.progress)) {
   const card = $("#tutorial");
   const show = Boolean(next) && !store.state.settings.tutorialSkipped;
   card.hidden = !show;
-  if (!show) return;
-  const index = TUTORIAL_STEPS.findIndex((step) => step.id === next.id) + 1;
-  $("#tutorial-index").textContent = `${index} / ${TUTORIAL_STEPS.length}`;
-  $("#tutorial-title").textContent = next.title;
-  $("#tutorial-copy").textContent = next.copy;
-  card.dataset.step = next.id;
+  if (show) {
+    const index = TUTORIAL_STEPS.findIndex((step) => step.id === next.id) + 1;
+    $("#tutorial-index").textContent = `${index} / ${TUTORIAL_STEPS.length}`;
+    $("#tutorial-title").textContent = next.title;
+    $("#tutorial-copy").textContent = next.copy;
+    card.dataset.step = next.id;
+  } else {
+    delete card.dataset.step;
+  }
+  syncTutorialStep();
 }
 
 function renderExpandControls() {
@@ -593,6 +648,7 @@ function renderShop() {
       }).join("")}
     </div>
   `;
+  applyTutorialHud();
 }
 
 function railEditorHtml(tile) {
@@ -839,6 +895,7 @@ function renderMachine() {
       ${powerOnly ? "전봇대 철거 · 전력망만 회수" : "설비 철거 · 전액 회수"}
     </button>
   `;
+  applyTutorialHud();
 }
 
 function updateMachineProgress() {
@@ -924,7 +981,8 @@ function applyImportedSave(save, source = "code") {
     world.restore(previousWorld);
     return false;
   }
-  ui.guideCelebrated = Object.values(store.state.progress).every(Boolean);
+  store.adoptWorldProgress(world);
+  ui.guideCelebrated = tutorialComplete(store.state.progress);
   $("#guide").open = !store.state.settings.tutorialCollapsed;
   power.invalidate();
   mapView.rebuild({ reason: "save-code-import" });
@@ -1082,6 +1140,7 @@ function openCraftPanel() {
     $(".factory-view").setAttribute("aria-hidden", "true");
   }
   $('[data-action="craft-toggle"]').setAttribute("aria-expanded", "true");
+  applyTutorialHud();
 }
 
 function closeCraftPanel() {
@@ -1095,6 +1154,7 @@ function closeCraftPanel() {
     $("#side-panel").setAttribute("aria-hidden", "true");
   }
   $('[data-action="craft-toggle"]').setAttribute("aria-expanded", "false");
+  applyTutorialHud();
 }
 
 function syncCraftPanelAccessibility() {

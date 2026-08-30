@@ -1,4 +1,4 @@
-import { BALANCE, expandCost, ORE_TIER_1, ORE_TIER_2, ORE_TIER_3, START_ORES } from "../domain/recipes.js?v=29";
+import { BALANCE, expandCost, ORE_TIER_1, ORE_TIER_2, ORE_TIER_3, START_ORES } from "../domain/recipes.js?v=30";
 
 const DIRECTIONS = Object.freeze({
   n: { x: 0, y: -1 },

@@ -1,6 +1,6 @@
-import { BALANCE, ORE_LABEL, itemName } from "../domain/recipes.js?v=29";
-import { RAIL_DIRECTIONS } from "../game/buildings.js?v=29";
-import { tileKey } from "../game/map.js?v=29";
+import { BALANCE, ORE_LABEL, itemName, tutorialTileHint } from "../domain/recipes.js?v=30";
+import { RAIL_DIRECTIONS } from "../game/buildings.js?v=30";
+import { tileKey } from "../game/map.js?v=30";
 
 const BUILDING_MARKS = {
   furnace: "IF",
@@ -23,13 +23,14 @@ const CARDINAL = Object.freeze([
 const WORK_TYPES = new Set(["miner", "furnace", "lab"]);
 
 export class MapView {
-  constructor({ grid, frame, world, store, simulation, getTool }) {
+  constructor({ grid, frame, world, store, simulation, getTool, getTutorial = () => null }) {
     this.grid = grid;
     this.frame = frame;
     this.world = world;
     this.store = store;
     this.simulation = simulation;
     this.getTool = getTool;
+    this.getTutorial = getTutorial;
     this.elements = new Map();
     this.parts = new Map();
     this.mineTile = null;
@@ -198,6 +199,7 @@ export class MapView {
     const status = this.simulation.tileStatus(tile);
     classes.push(`status-${status.state}`);
     if (this.mineTile === tile) classes.push("mining");
+    if (this.isTutorialTile(tile)) classes.push("tutorial-spot");
     const className = classes.filter(Boolean).join(" ");
     if (element.className !== className) element.className = className;
 
@@ -268,6 +270,16 @@ export class MapView {
     if (element.title !== title) element.title = title;
     const aria = `${tile.x}, ${tile.y}: ${title}`;
     if (element.getAttribute("aria-label") !== aria) element.setAttribute("aria-label", aria);
+  }
+
+  isTutorialTile(tile) {
+    const step = this.getTutorial();
+    if (!tutorialTileHint(step, tile)) return false;
+    if (step.hint?.tiles !== "empty") return true;
+    return CARDINAL.some(([, dx, dy]) => {
+      const neighbor = this.world.get(tile.x + dx, tile.y + dy);
+      return Boolean(neighbor?.building?.type === "shop" || neighbor?.rail);
+    });
   }
 
   tileFromElement(target) {

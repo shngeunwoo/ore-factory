@@ -15,6 +15,9 @@ import {
   expandCost,
   nextTutorialStep,
   TUTORIAL_STEPS,
+  createTutorialProgress,
+  tutorialComplete,
+  tutorialTileHint,
 } from "../src/js/domain/recipes.js";
 import { createBuilding } from "../src/js/game/buildings.js";
 import { clearTiles, setup } from "./helpers.js";
@@ -29,8 +32,53 @@ test("v2 도메인 키와 연구 해금 대상이 완전하다", () => {
 test("튜토리얼은 완료되지 않은 다음 단계만 가리킨다", () => {
   assert.equal(nextTutorialStep({}).id, "mined");
   assert.equal(nextTutorialStep({ mined: true }).id, "sold");
-  assert.equal(nextTutorialStep({ mined: true, sold: true, smelted: true, automated: true }), null);
-  assert.equal(TUTORIAL_STEPS.length, 4);
+  assert.equal(nextTutorialStep({ mined: true, sold: true }).id, "railed");
+  assert.equal(nextTutorialStep({ mined: true, sold: true, railed: true }).id, "smelted");
+  assert.equal(nextTutorialStep({
+    mined: true, sold: true, railed: true, smelted: true,
+  }).id, "researched");
+  assert.equal(nextTutorialStep({
+    mined: true, sold: true, railed: true, smelted: true, researched: true,
+  }).id, "miner");
+  assert.equal(nextTutorialStep({
+    mined: true, sold: true, railed: true, smelted: true, researched: true, miner: true,
+  }), null);
+  assert.equal(TUTORIAL_STEPS.length, 6);
+  assert.equal(tutorialComplete(createTutorialProgress({ automated: true })), false);
+  assert.equal(createTutorialProgress({ automated: true }).railed, true);
+  assert.equal(tutorialTileHint(TUTORIAL_STEPS[0], { ore: "iron" }), true);
+  assert.equal(tutorialTileHint(TUTORIAL_STEPS[2], { ore: null, building: null, rail: null }), true);
+  assert.equal(tutorialTileHint(TUTORIAL_STEPS[3], { rail: { type: "rail" } }), true);
+});
+
+test("옛 automated 진행은 레일 단계만 완료로 본다", () => {
+  const { store } = setup();
+  store.restore({
+    ...store.snapshot(),
+    progress: { mined: true, sold: true, smelted: true, automated: true },
+  });
+  assert.equal(store.state.progress.railed, true);
+  assert.equal(store.state.progress.miner, false);
+  assert.equal(nextTutorialStep(store.state.progress).id, "researched");
+});
+
+test("레일 설치·자동 채굴 연구·채굴기 설치가 튜토리얼을 나눈다", () => {
+  const { store, world, simulation } = setup();
+  const tile = world.get(0, 0);
+  clearTiles(tile);
+  store.add("stone", 20, "test");
+  assert.equal(simulation.place("rail_1", tile).ok, true);
+  assert.equal(store.state.progress.railed, true);
+  assert.equal(store.state.progress.miner, false);
+  store.addResearch(2, "test");
+  assert.equal(store.researchTech("automation").ok, true);
+  assert.equal(store.state.progress.researched, true);
+  const ore = [...world.tiles.values()].find((entry) => entry.ore && !entry.building);
+  store.add("iron_ingot", 2, "test");
+  assert.equal(simulation.place("miner_1", ore).ok, true);
+  assert.equal(store.state.progress.miner, true);
+  store.adoptWorldProgress(world);
+  assert.equal(store.state.progress.railed, true);
 });
 
 test("자동 판매는 발견·판매량·금액 통계를 갱신한다", () => {

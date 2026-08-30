@@ -881,6 +881,40 @@ body.tool-active .map-viewport {
   padding: 0.28rem 0.45rem;
 }
 
+@keyframes tutorial-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(88, 214, 238, 0.72), 0 0 12px rgba(88, 214, 238, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(88, 214, 238, 1), 0 0 22px rgba(88, 214, 238, 0.55);
+  }
+}
+
+.tutorial-spot {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  animation: tutorial-pulse 1.15s ease-in-out infinite;
+}
+
+.tile.tutorial-spot {
+  z-index: 11;
+  overflow: visible;
+  outline-offset: -2px;
+  border-color: var(--cyan);
+}
+
+.recipe.tutorial-spot,
+.panel-tabs button.tutorial-spot,
+.icon-btn.tutorial-spot,
+.sell-row.tutorial-spot,
+.ore-controls.tutorial-spot,
+.manual-controls .tutorial-spot {
+  z-index: 2;
+  overflow: visible;
+  border-color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan-soft) 70%, transparent);
+}
+
 .guide {
   margin-top: 0.65rem;
   border: 1px solid var(--line);
@@ -924,7 +958,7 @@ body.tool-active .map-viewport {
 
 .guide ol {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.35rem;
   margin: 0;
   padding: 0 0.6rem 0.6rem;
@@ -964,6 +998,12 @@ body.tool-active .map-viewport {
   border-color: color-mix(in srgb, var(--cyan) 55%, var(--line));
   background: var(--cyan-soft);
   color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .guide ol {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .fx-layer {
