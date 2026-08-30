@@ -1,4 +1,4 @@
-import { BALANCE, powerDraw } from "../domain/recipes.js?v=26";
+import { BALANCE, powerDraw } from "../domain/recipes.js?v=28";
 
 const CORE_TYPES = new Set(["generator", "pole", "battery"]);
 
@@ -43,15 +43,15 @@ export class PowerSystem {
   }
 
   buildNetworks(dt) {
-    const powerTiles = [];
+    const byKey = new Map();
     this.world.forEach((tile) => {
-      if (this.isPowerTile(tile)) powerTiles.push(tile);
+      if (this.isPowerTile(tile)) byKey.set(this.key(tile), tile);
     });
-    const pending = new Set(powerTiles.map((tile) => this.key(tile)));
+    const pending = new Set(byKey.keys());
     const networks = [];
     while (pending.size) {
       const firstKey = pending.values().next().value;
-      const first = powerTiles.find((tile) => this.key(tile) === firstKey);
+      const first = byKey.get(firstKey);
       const queue = [first];
       const network = [];
       pending.delete(firstKey);

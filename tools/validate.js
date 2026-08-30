@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  BALANCE,
   BUILDINGS,
   CRAFT_ORDER,
   INGOT_IDS,
@@ -103,6 +104,12 @@ for (const ore of ORE_IDS) {
 }
 for (const ingot of INGOT_IDS) {
   if (!Object.values(ORE_TO_INGOT).includes(ingot)) fail(`ORE_TO_INGOT missing output ${ingot}`);
+}
+for (const id of Object.keys(BALANCE.research.labCostPerPoint)) {
+  if (!Object.hasOwn(BALANCE.research.labBufferCap, id)) fail(`labBufferCap missing ${id}`);
+  if (BALANCE.research.labBufferCap[id] < BALANCE.research.labCostPerPoint[id]) {
+    fail(`labBufferCap ${id} smaller than labCostPerPoint`);
+  }
 }
 
 const styleEntry = read("src/css/style.css");

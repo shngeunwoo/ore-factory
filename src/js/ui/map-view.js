@@ -1,6 +1,6 @@
-import { BALANCE, ORE_LABEL, itemName } from "../domain/recipes.js?v=26";
-import { RAIL_DIRECTIONS } from "../game/buildings.js?v=26";
-import { tileKey } from "../game/map.js?v=26";
+import { BALANCE, ORE_LABEL, itemName } from "../domain/recipes.js?v=28";
+import { RAIL_DIRECTIONS } from "../game/buildings.js?v=28";
+import { tileKey } from "../game/map.js?v=28";
 
 const BUILDING_MARKS = {
   furnace: "IF",
@@ -13,6 +13,15 @@ const BUILDING_MARKS = {
   lab: "RS",
 };
 
+const CARDINAL = Object.freeze([
+  Object.freeze(["n", 0, -1]),
+  Object.freeze(["e", 1, 0]),
+  Object.freeze(["s", 0, 1]),
+  Object.freeze(["w", -1, 0]),
+]);
+
+const WORK_TYPES = new Set(["miner", "furnace", "lab"]);
+
 export class MapView {
   constructor({ grid, frame, world, store, simulation, getTool }) {
     this.grid = grid;
@@ -22,6 +31,7 @@ export class MapView {
     this.simulation = simulation;
     this.getTool = getTool;
     this.elements = new Map();
+    this.parts = new Map();
     this.mineTile = null;
     this.mineProgress = 0;
     this.tileSize = BALANCE.zoom.initial;
@@ -63,7 +73,20 @@ export class MapView {
       <span class="work-bar" hidden aria-hidden="true"><span></span></span>
       <span class="mine-ring" aria-hidden="true"></span>
     `;
-    this.elements.set(tileKey(tile.x, tile.y), element);
+    const key = tileKey(tile.x, tile.y);
+    this.elements.set(key, element);
+    this.parts.set(key, {
+      label: element.querySelector(".tile-label"),
+      mark: element.querySelector(".build-mark"),
+      powerMark: element.querySelector(".power-node-mark"),
+      tierBadge: element.querySelector(".tier-badge"),
+      cargo: element.querySelector(".cargo"),
+      groundItem: element.querySelector(".ground-item"),
+      flow: element.querySelector(".rail-flow"),
+      workBar: element.querySelector(".work-bar"),
+      workFill: element.querySelector(".work-bar span"),
+      mineRing: element.querySelector(".mine-ring"),
+    });
     return element;
   }
 
@@ -100,9 +123,34 @@ export class MapView {
     this.world.forEach((tile) => this.renderTile(tile));
   }
 
+  renderActive() {
+    this.world.forEach((tile) => {
+      if (tile.ore || tile.building || tile.rail || tile.powerNode || tile.cargo || tile.groundItems?.length) {
+        this.renderTile(tile);
+      }
+    });
+  }
+
+  workProgress(tile) {
+    const building = tile?.building;
+    if (!WORK_TYPES.has(building?.type)) return 0;
+    return Math.max(0, Math.min(1, building.progress || 0));
+  }
+
+  paintProgress(tile) {
+    const key = tileKey(tile.x, tile.y);
+    const parts = this.parts.get(key);
+    if (!parts) return;
+    const progress = this.workProgress(tile);
+    parts.workBar.hidden = progress <= 0;
+    parts.workFill.style.transform = `scaleX(${progress})`;
+  }
+
   renderTile(tile) {
-    const element = this.elements.get(tileKey(tile.x, tile.y));
-    if (!element) return;
+    const key = tileKey(tile.x, tile.y);
+    const element = this.elements.get(key);
+    const parts = this.parts.get(key);
+    if (!element || !parts) return;
     const classes = ["tile", `ground-${Math.abs(tile.x * 17 + tile.y * 31) % 4 + 1}`];
     const building = tile.building;
     const rail = tile.rail;
@@ -118,8 +166,7 @@ export class MapView {
     }
     if (powerNode) classes.push("has-power-node", `power-node-${powerNode.type}`);
     if (building || rail || powerNode) {
-      const offsets = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
-      Object.entries(offsets).forEach(([direction, [dx, dy]]) => {
+      CARDINAL.forEach(([direction, dx, dy]) => {
         const neighbor = this.world.get(tile.x + dx, tile.y + dy);
         if (this.simulation.power?.linked(tile, neighbor)) classes.push(`power-${direction}`);
       });
@@ -137,9 +184,11 @@ export class MapView {
     if (tile.groundItems?.length) classes.push("has-ground-item");
 
     const tool = this.getTool();
+    let placement = null;
     if (tool.mode === "place" && tool.def) {
+      placement = this.simulation.canPlace(tool.def, tile);
       classes.push("placement-target");
-      classes.push(this.simulation.canPlace(tool.def, tile).ok ? "can-place" : "cannot-place");
+      classes.push(placement.ok ? "can-place" : "cannot-place");
     } else if (tool.mode === "demolish" && ((building && building.type !== "shop") || rail)) {
       classes.push("can-demolish");
     } else if (tool.mode === "power-demolish" && powerNode) {
@@ -149,58 +198,47 @@ export class MapView {
     const status = this.simulation.tileStatus(tile);
     classes.push(`status-${status.state}`);
     if (this.mineTile === tile) classes.push("mining");
-    element.className = classes.filter(Boolean).join(" ");
+    const className = classes.filter(Boolean).join(" ");
+    if (element.className !== className) element.className = className;
 
     const knownOre = tile.ore && this.store.isDiscovered(tile.ore);
     const oreName = tile.ore ? (knownOre ? itemName(tile.ore) : "미확인 광물") : "";
     const buildingName = building?.defId ? BUILDING_MARKS[building.type] : building?.type === "shop" ? "SHOP" : "";
-    const label = element.querySelector(".tile-label");
-    if (building?.type === "shop" && building.center) label.textContent = "상점";
-    else if (tile.ore && !building) label.textContent = knownOre ? ORE_LABEL[tile.ore] : "???";
-    else label.textContent = "";
+    if (building?.type === "shop" && building.center) parts.label.textContent = "상점";
+    else if (tile.ore && !building) parts.label.textContent = knownOre ? ORE_LABEL[tile.ore] : "???";
+    else parts.label.textContent = "";
 
-    const mark = element.querySelector(".build-mark");
-    mark.textContent = buildingName;
-    mark.hidden = !buildingName || building?.type === "shop";
-    mark.dataset.tier = String(building?.tier || 0);
-    const powerMark = element.querySelector(".power-node-mark");
-    powerMark.hidden = !powerNode;
+    parts.mark.textContent = buildingName;
+    parts.mark.hidden = !buildingName || building?.type === "shop";
+    parts.mark.dataset.tier = String(building?.tier || 0);
+    parts.powerMark.hidden = !powerNode;
 
-    const tierBadge = element.querySelector(".tier-badge");
     const visibleTier = building?.type !== "shop" ? (building?.tier || rail?.tier || 0) : 0;
-    tierBadge.hidden = visibleTier <= 0;
-    tierBadge.textContent = visibleTier > 0 ? `T${visibleTier}` : "";
+    parts.tierBadge.hidden = visibleTier <= 0;
+    parts.tierBadge.textContent = visibleTier > 0 ? `T${visibleTier}` : "";
 
-    const cargo = element.querySelector(".cargo");
-    cargo.hidden = !tile.cargo;
-    if (tile.cargo) cargo.dataset.item = tile.cargo.type;
-    else delete cargo.dataset.item;
+    parts.cargo.hidden = !tile.cargo;
+    if (tile.cargo) parts.cargo.dataset.item = tile.cargo.type;
+    else delete parts.cargo.dataset.item;
 
-    const groundItem = element.querySelector(".ground-item");
     const firstGround = tile.groundItems?.[0];
-    groundItem.hidden = !firstGround;
-    groundItem.textContent = firstGround ? String(tile.groundItems.reduce((sum, stack) => sum + stack.amount, 0)) : "";
-    if (firstGround) groundItem.dataset.item = firstGround.type;
-    else delete groundItem.dataset.item;
+    parts.groundItem.hidden = !firstGround;
+    parts.groundItem.textContent = firstGround ? String(tile.groundItems.reduce((sum, stack) => sum + stack.amount, 0)) : "";
+    if (firstGround) parts.groundItem.dataset.item = firstGround.type;
+    else delete parts.groundItem.dataset.item;
 
-    const flow = element.querySelector(".rail-flow");
-    flow.textContent = "";
+    parts.flow.textContent = "";
     if (rail && railFlow?.direction) {
-      flow.textContent = RAIL_DIRECTIONS[railFlow.direction].label;
+      parts.flow.textContent = RAIL_DIRECTIONS[railFlow.direction].label;
     } else if (building?.type === "miner") {
       const output = building.output || "auto";
-      flow.textContent = output === "auto" ? "A" : RAIL_DIRECTIONS[output].label;
+      parts.flow.textContent = output === "auto" ? "A" : RAIL_DIRECTIONS[output].label;
     }
 
-    const progress = building && ["miner", "furnace", "lab"].includes(building.type)
-      ? Math.max(0, Math.min(1, building.progress || 0))
-      : 0;
-    const progressWrap = element.querySelector(".work-bar");
-    progressWrap.hidden = progress <= 0;
-    progressWrap.querySelector("span").style.transform = `scaleX(${progress})`;
-
-    const mineRing = element.querySelector(".mine-ring");
-    mineRing.style.setProperty("--mine-p", `${Math.round((this.mineTile === tile ? this.mineProgress : 0) * 100)}%`);
+    const progress = this.workProgress(tile);
+    parts.workBar.hidden = progress <= 0;
+    parts.workFill.style.transform = `scaleX(${progress})`;
+    parts.mineRing.style.setProperty("--mine-p", `${Math.round((this.mineTile === tile ? this.mineProgress : 0) * 100)}%`);
 
     let description = building
       ? `${building.type === "shop" ? "판매 터미널" : buildingName || building.type} · ${status.label}`
@@ -211,7 +249,6 @@ export class MapView {
         : "빈 땅";
     if (powerNode) description += " · 전봇대";
     if (tool.mode === "place" && tool.def) {
-      const placement = this.simulation.canPlace(tool.def, tile);
       description += placement.ok ? ` · ${tool.def.name} 설치 가능` : ` · 설치 불가: ${placement.reason}`;
     } else if (tool.mode === "demolish" && ((building && building.type !== "shop") || rail)) {
       description += " · 철거 시 전액 회수";
@@ -227,8 +264,10 @@ export class MapView {
       : tile.building?.type === "storage" && Object.values(tile.building.stacks || {}).some((count) => count > 0)
         ? " · 길게 눌러 창고 화물 전량 회수"
         : "";
-    element.title = description + cargoText + groundText + holdText;
-    element.setAttribute("aria-label", `${tile.x}, ${tile.y}: ${description}${cargoText}${groundText}${holdText}`);
+    const title = description + cargoText + groundText + holdText;
+    if (element.title !== title) element.title = title;
+    const aria = `${tile.x}, ${tile.y}: ${title}`;
+    if (element.getAttribute("aria-label") !== aria) element.setAttribute("aria-label", aria);
   }
 
   tileFromElement(target) {

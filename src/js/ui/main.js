@@ -4,6 +4,7 @@ import {
   CRAFT_ORDER,
   INGOT_IDS,
   ITEMS,
+  LAB_INPUTS,
   MINE_TIME,
   ORE_IDS,
   ORE_LABEL,
@@ -16,16 +17,17 @@ import {
   nextTutorialStep,
   powerDraw,
   TUTORIAL_STEPS,
-} from "../domain/recipes.js?v=26";
-import { EventBus, GameStore } from "../game/inventory.js?v=26";
-import { World, tileKey } from "../game/map.js?v=26";
+} from "../domain/recipes.js?v=28";
+import { EventBus, GameStore } from "../game/inventory.js?v=28";
+import { World, tileKey } from "../game/map.js?v=28";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
+  normalizeLab,
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=26";
+} from "../game/buildings.js?v=28";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -35,12 +37,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=26";
-import { PowerSystem } from "../game/power.js?v=26";
-import { ProgressionSystem } from "../game/progression.js?v=26";
-import { Effects } from "./fx.js?v=26";
-import { MapView } from "./map-view.js?v=26";
-import { questMarkup, researchMarkup } from "./panels.js?v=26";
+} from "../game/persistence.js?v=28";
+import { PowerSystem } from "../game/power.js?v=28";
+import { ProgressionSystem } from "../game/progression.js?v=28";
+import { Effects } from "./fx.js?v=28";
+import { MapView } from "./map-view.js?v=28";
+import { questMarkup, researchMarkup } from "./panels.js?v=28";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -142,7 +144,7 @@ function chipMarkup(id) {
   `;
 }
 
-function renderHud() {
+function renderChrome() {
   document.body.classList.toggle("reduce-motion", store.state.settings.reducedMotion);
   $("#money b").textContent = `$${store.money}`;
   $("#stat-mine").textContent = String(store.state.stats.mined);
@@ -160,6 +162,10 @@ function renderHud() {
   $(".power-stat").title = `발전 ${generated} · 공급 ${supplied} / 수요 ${demand} · 축전 ${Math.floor(store.state.power.stored)} / ${Math.floor(store.state.power.capacity)}`;
   $(".power-stat").setAttribute("aria-label", $(".power-stat").title);
   $("#stat-research").textContent = String(store.state.research.points);
+  updateSoundButton();
+}
+
+function renderInventory() {
   $("#inv-ores").innerHTML = ORE_IDS
     .filter((id) => ["stone", "coal", "iron", "copper"].includes(id) || store.isDiscovered(id))
     .map(chipMarkup)
@@ -167,9 +173,47 @@ function renderHud() {
   const discoveredIngots = INGOT_IDS.filter((id) => store.isDiscovered(id));
   $("#ingot-group").hidden = !discoveredIngots.length;
   $("#inv-ingots").innerHTML = discoveredIngots.map(chipMarkup).join("");
+}
+
+function renderHud() {
+  renderChrome();
+  renderInventory();
   renderExpandControls();
   renderGuide();
-  updateSoundButton();
+}
+
+const pendingState = new Set();
+let stateFrame = 0;
+
+function flushState() {
+  stateFrame = 0;
+  const reasons = pendingState;
+  pendingState.clear();
+  const all = reasons.has("save-code-import") || reasons.size === 0;
+  renderChrome();
+  if (all || reasons.has("inventory") || reasons.has("discovery") || reasons.has("sale")) {
+    renderInventory();
+  }
+  if (all || ["inventory", "money", "discovery", "unlock", "research", "sale"].some((reason) => reasons.has(reason))) {
+    renderCraft();
+  }
+  if (all || reasons.has("research") || reasons.has("unlock")) {
+    renderResearch();
+  }
+  if (all || ["stats", "sale", "progress", "research"].some((reason) => reasons.has(reason))) {
+    renderQuests();
+  }
+  if (all || reasons.has("progress") || reasons.has("settings")) {
+    renderGuide();
+  }
+  if (all || reasons.has("money") || reasons.has("expand") || reasons.has("sale")) {
+    renderExpandControls();
+  }
+}
+
+function queueState(reason) {
+  pendingState.add(reason || "save-code-import");
+  if (!stateFrame) stateFrame = requestAnimationFrame(flushState);
 }
 
 function formatCost(cost, showMissing = false) {
@@ -726,14 +770,36 @@ function renderMachine() {
     const capacity = BALANCE.power.batteryCapacity[building.tier] || BALANCE.power.batteryCapacity[1];
     detail = `<div class="machine-data"><span>저장 전력</span><b id="machine-charge">${Math.floor(building.charge || 0)} / ${capacity}</b></div>`;
   } else if (building.type === "lab") {
+    normalizeLab(building);
+    const stockRows = LAB_INPUTS.map((id) => {
+      const cap = simulation.labBufferCap(id);
+      const amount = building.stocks[id] || 0;
+      return `
+        <div>
+          <small>${store.displayName(id)}</small>
+          <b data-lab-stock="${id}">${amount}/${cap}</b>
+        </div>
+      `;
+    }).join("");
+    const insertButtons = LAB_INPUTS.map((id) => {
+      const cap = simulation.labBufferCap(id);
+      const amount = building.stocks[id] || 0;
+      const canInsert = store.count(id) > 0 && amount < cap;
+      return `<button type="button" data-lab-item="${id}" ${canInsert ? "" : "disabled"}>${store.displayName(id)} 보충</button>`;
+    }).join("");
     detail = `
       <div class="machine-data">
         <span>연구 생산 진행</span>
         <b>${Math.round((building.progress || 0) * 100)}%</b>
       </div>
+      <div class="machine-grid">${stockRows}</div>
+      <div class="manual-controls">
+        <div class="ore-controls">${insertButtons}</div>
+      </div>
       <div class="save-card lab-cost">
-        <span>연구점 1 RP 생산 비용</span>
-        <div class="recipe-cost">${formatCost(BALANCE.research.labCostPerPoint, true)}</div>
+        <span>연구점 1 RP 생산 비용 · 버퍼에서 차감</span>
+        <div class="recipe-cost">${Object.entries(BALANCE.research.labCostPerPoint).map(([id, amount]) =>
+          `<span>${store.displayName(id)} ${amount}</span>`).join("")}</div>
       </div>
     `;
   } else if (building.type === "rail") {
@@ -773,6 +839,13 @@ function renderMachine() {
       ${powerOnly ? "전봇대 철거 · 전력망만 회수" : "설비 철거 · 전액 회수"}
     </button>
   `;
+}
+
+function updateMachineProgress() {
+  if (ui.modal !== "machine") return;
+  const building = ui.modalTile?.building || ui.modalTile?.rail;
+  const progress = $("#machine-progress");
+  if (progress) progress.style.width = `${Math.round((building?.progress || 0) * 100)}%`;
 }
 
 function updateMachine() {
@@ -817,6 +890,18 @@ function updateMachine() {
   if (building.type === "battery" && $("#machine-charge")) {
     const capacity = BALANCE.power.batteryCapacity[building.tier] || BALANCE.power.batteryCapacity[1];
     $("#machine-charge").textContent = `${Math.floor(building.charge || 0)} / ${capacity}`;
+  }
+  if (building.type === "lab") {
+    normalizeLab(building);
+    $$("[data-lab-stock]", $("#modal-panel")).forEach((element) => {
+      const id = element.dataset.labStock;
+      element.textContent = `${building.stocks[id] || 0}/${simulation.labBufferCap(id)}`;
+    });
+    $$("[data-lab-item]", $("#modal-panel")).forEach((button) => {
+      const id = button.dataset.labItem;
+      const cap = simulation.labBufferCap(id);
+      button.disabled = !(store.count(id) && (building.stocks[id] || 0) < cap);
+    });
   }
 }
 
@@ -1208,6 +1293,14 @@ async function handleModalClick(event) {
     } else toast("석탄이 없거나 저장소가 가득 찼습니다", "error");
     return;
   }
+  const labItem = event.target.closest("[data-lab-item]");
+  if (labItem && ui.modalTile?.building?.type === "lab") {
+    if (simulation.insertLabItem(ui.modalTile, labItem.dataset.labItem)) {
+      logActivity(`연구소에 ${store.displayName(labItem.dataset.labItem)} 투입`);
+      renderMachine();
+    } else toast("넣을 수 없거나 버퍼가 가득 찼습니다", "error");
+    return;
+  }
   const oreButton = event.target.closest("[data-ore]");
   if (oreButton && ui.modalTile) {
     if (simulation.insertOre(ui.modalTile, oreButton.dataset.ore)) renderMachine();
@@ -1454,11 +1547,13 @@ function handleKeyUp(event) {
 }
 
 function bindEvents() {
-  bus.on("state", () => {
-    renderHud();
-    renderPanels();
-  });
+  bus.on("state", ({ reason }) => queueState(reason));
   bus.on("tile", ({ tile, reason }) => {
+    if (reason === "progress") {
+      mapView.paintProgress(tile);
+      if (ui.modalTile === tile) updateMachineProgress();
+      return;
+    }
     mapView.renderTile(tile);
     if (ui.modalTile === tile) {
       if (
@@ -1482,7 +1577,7 @@ function bindEvents() {
     }
   });
   bus.on("paths", () => {
-    mapView.renderAll();
+    mapView.renderActive();
     if (ui.modalTile?.rail) renderMachine();
   });
   bus.on("cargoMove", ({ from, to, item }) => effects.cargo(from, to, item));
@@ -1513,12 +1608,10 @@ function bindEvents() {
     toast(`퀘스트 완료 · ${quest.name}`, "success");
     logActivity(`${quest.name} 완료 · 보상 지급`);
     effects.sound("unlock");
-    renderPanels();
   });
-  bus.on("researchComplete", () => renderPanels());
   bus.on("powerChanged", () => {
-    renderHud();
-    mapView.renderAll();
+    renderChrome();
+    mapView.renderActive();
     updateMachine();
   });
 

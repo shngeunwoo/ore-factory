@@ -1,4 +1,4 @@
-import { BALANCE, BUILDINGS, ITEMS, SELL, TECHNOLOGIES, itemName } from "../domain/recipes.js?v=26";
+import { BALANCE, BUILDINGS, ITEMS, SELL, TECHNOLOGIES, itemName } from "../domain/recipes.js?v=28";
 
 export class EventBus {
   constructor() {

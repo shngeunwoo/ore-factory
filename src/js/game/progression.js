@@ -1,4 +1,5 @@
-import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=26";
+import { BALANCE, QUESTS, TECHNOLOGIES } from "../domain/recipes.js?v=28";
+import { labTakeCost, normalizeLab, progressPaintChanged } from "./buildings.js?v=28";
 
 export class ProgressionSystem {
   constructor(bus, store, world, power = null) {
@@ -60,9 +61,10 @@ export class ProgressionSystem {
       if (lab?.type !== "lab") return;
       const factor = this.power ? this.power.factorFor(tile) : 1;
       if (factor <= 0) return;
+      normalizeLab(lab);
       lab.progress = (lab.progress || 0) + (dt * factor) / BALANCE.research.labSecondsPerPoint;
       let points = 0;
-      while (lab.progress >= 1 && this.store.take(BALANCE.research.labCostPerPoint, "research-lab")) {
+      while (lab.progress >= 1 && labTakeCost(lab)) {
         lab.progress -= 1;
         points += 1;
       }
@@ -71,8 +73,10 @@ export class ProgressionSystem {
         this.store.addResearch(points, "lab");
         this.bus.emit("machineCycle", { tile, type: "research", amount: points });
         this.bus.emit("dirty", { reason: "research" });
+        this.bus.emit("tile", { tile, reason: "research" });
+      } else if (progressPaintChanged(lab)) {
+        this.bus.emit("tile", { tile, reason: "progress" });
       }
-      this.bus.emit("tile", { tile, reason: points > 0 ? "research" : "progress" });
     });
   }
 

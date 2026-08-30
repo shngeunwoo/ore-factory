@@ -51,6 +51,8 @@ domain/  숫자·이름·레시피·공식. DOM·game·ui 금지
 화로와 필터 분배기는 `building` 레이어에서 같은 칸의 `rail`을 처리한다. 필터
 분배기는 `{ routes: { n, e, s, w } }`에 방향별 품목을 저장하며 기존 단일
 `filter`/`filterOutput` 데이터는 읽을 때 자동 변환한다.
+연구소는 `{ stocks }` 버퍼를 가진다. 출력이 가리키는 인접 레일 화물과 검사 패널
+수동 투입을 받고, `progression.js`가 버퍼에서 연구점 비용을 차감한다.
 
 ## 시스템 조립
 
@@ -76,8 +78,12 @@ domain/  숫자·이름·레시피·공식. DOM·game·ui 금지
 
 ## 루프
 
-`requestAnimationFrame` → `updateMining(dt)` + `updateHoldPickup(dt)` + `simulation.update(dt)`.
+`requestAnimationFrame` → `updateMining(dt)` + `updateHoldPickup(dt)` + 전력 → 진행 → 공장 시뮬.
 `dt` 상한은 `recipes.js`의 밸런스 값으로 제한한다.
+
+타일 DOM 자식은 생성 시 캐시한다. 채굴기·화로·연구소 진행률만 바뀌면 작업 게이지만
+갱신하고, `state`는 이유별로 HUD·제작·연구 패널을 나눈다. 레일 경로·전력 변동은
+설비·레일·화물이 있는 칸만 다시 그린다.
 
 ## 새 모듈
 

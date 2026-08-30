@@ -1,8 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BALANCE, BUILDINGS, powerDraw } from "../src/js/domain/recipes.js";
-import { createBuilding } from "../src/js/game/buildings.js";
+import { BALANCE, BUILDINGS, QUESTS, TECHNOLOGIES, powerDraw } from "../src/js/domain/recipes.js";
+import { createBuilding, progressPaintChanged } from "../src/js/game/buildings.js";
 import { clearTiles, setup } from "./helpers.js";
+
+function fillLab(building, times = 1) {
+  Object.entries(BALANCE.research.labCostPerPoint).forEach(([id, amount]) => {
+    building.stocks[id] = amount * times;
+  });
+}
+
+function poweredLab(world) {
+  const generator = world.get(0, 0);
+  const pole = world.get(1, 0);
+  const lab = world.get(2, 0);
+  clearTiles(generator, pole, lab);
+  generator.building = createBuilding(BUILDINGS.generator_1);
+  pole.powerNode = createBuilding(BUILDINGS.pole_1);
+  lab.building = createBuilding(BUILDINGS.lab_1);
+  generator.building.coal = 1;
+  return { generator, pole, lab };
+}
 
 test("연구는 연구점을 쓰고 건물을 해금하며 선행 기술을 강제한다", () => {
   const { store, progression } = setup();
@@ -137,50 +155,88 @@ test("T2 레일은 전력 없이는 멈추고 공급되면 화물을 운송한�
   assert.equal(target.cargo.type, "iron");
 });
 
-test("전력이 연결된 연구소는 대량 자원을 소비해 연구점을 생산한다", () => {
+test("전력이 연결된 연구소는 버퍼 자원을 소비해 연구점을 생산한다", () => {
   const { store, world, power, progression } = setup();
-  const generator = world.get(0, 0);
-  const pole = world.get(1, 0);
-  const lab = world.get(2, 0);
-  clearTiles(generator, pole, lab);
-  generator.building = createBuilding(BUILDINGS.generator_1);
-  pole.powerNode = createBuilding(BUILDINGS.pole_1);
-  lab.building = createBuilding(BUILDINGS.lab_1);
-  generator.building.coal = 1;
+  const { lab } = poweredLab(world);
   store.state.research.completed.power = true;
-  store.refund(BALANCE.research.labCostPerPoint, "test");
+  fillLab(lab.building);
   power.invalidate();
   power.update(0.3);
   const before = store.state.research.points;
-  const resources = Object.fromEntries(
+  const inventory = Object.fromEntries(
     Object.keys(BALANCE.research.labCostPerPoint).map((id) => [id, store.count(id)]),
   );
-  progression.update(9);
-  assert.equal(store.state.research.points > before, true);
+  progression.update(4);
+  assert.equal(store.state.research.points, before + 1);
   Object.entries(BALANCE.research.labCostPerPoint).forEach(([id, amount]) => {
-    assert.equal(store.count(id), resources[id] - amount);
+    assert.equal(lab.building.stocks[id], 0);
+    assert.equal(store.count(id), inventory[id]);
   });
 });
 
 test("연구소는 생산 자원이 부족하면 완료 직전에서 대기한다", () => {
   const { store, world, power, progression, simulation } = setup();
-  const generator = world.get(0, 0);
-  const pole = world.get(1, 0);
-  const lab = world.get(2, 0);
-  clearTiles(generator, pole, lab);
-  generator.building = createBuilding(BUILDINGS.generator_1);
-  pole.powerNode = createBuilding(BUILDINGS.pole_1);
-  lab.building = createBuilding(BUILDINGS.lab_1);
-  generator.building.coal = 1;
+  const { lab } = poweredLab(world);
   power.invalidate();
   power.update(0.3);
   const before = store.state.research.points;
 
-  progression.update(9);
+  progression.update(4);
 
   assert.equal(store.state.research.points, before);
   assert.equal(lab.building.progress, 1);
   assert.equal(simulation.tileStatus(lab).label, "연구 자원 부족");
+});
+
+test("퀘스트 연구점만으로 연구소 이전 기술을 산 뒤에도 연구소를 해금할 수 있다", () => {
+  const { store, progression } = setup();
+  for (const quest of QUESTS) {
+    store.addResearch(quest.reward.research || 0, "test");
+  }
+  for (const id of ["automation", "logistics", "routing", "power", "battery"]) {
+    const result = progression.research(id);
+    assert.equal(result.ok, true, id);
+  }
+  assert.equal(TECHNOLOGIES.research_lab.cost, 5);
+  assert.equal(progression.research("research_lab").ok, true);
+  assert.equal(store.isUnlocked("lab_1"), true);
+});
+
+test("연구소는 인벤에서 버퍼로 수동 투입한다", () => {
+  const { store, world, simulation } = setup();
+  const tile = world.get(0, 0);
+  clearTiles(tile);
+  tile.building = createBuilding(BUILDINGS.lab_1);
+  const before = store.count("stone");
+  assert.equal(simulation.insertLabItem(tile, "stone"), true);
+  assert.equal(tile.building.stocks.stone, before);
+  assert.equal(store.count("stone"), 0);
+  assert.equal(simulation.insertLabItem(tile, "stone"), false);
+});
+
+test("연구소는 출력이 가리키는 인접 레일 화물을 버퍼로 흡수한다", () => {
+  const { world, simulation } = setup();
+  const rail = world.get(0, 0);
+  const lab = world.get(1, 0);
+  clearTiles(rail, lab);
+  rail.rail = createBuilding(BUILDINGS.rail_1);
+  lab.building = createBuilding(BUILDINGS.lab_1);
+  rail.cargo = { type: "coal" };
+  simulation.setRailOutput(rail, "e");
+  simulation.update(1);
+  assert.equal(rail.cargo, null);
+  assert.equal(lab.building.stocks.coal, 1);
+});
+
+test("연구소 철거는 버퍼 자원을 인벤으로 회수한다", () => {
+  const { store, world, simulation } = setup();
+  const tile = world.get(0, 0);
+  clearTiles(tile);
+  tile.building = createBuilding(BUILDINGS.lab_1);
+  tile.building.stocks.iron_ingot = 7;
+  const before = store.count("iron_ingot");
+  assert.equal(simulation.remove(tile).ok, true);
+  assert.equal(store.count("iron_ingot"), before + 7 + BUILDINGS.lab_1.craft.iron_ingot);
 });
 
 test("전봇대는 다른 타일 레이어와 겹치며 별도로 철거된다", () => {
@@ -198,4 +254,13 @@ test("전봇대는 다른 타일 레이어와 겹치며 별도로 철거된다",
   assert.equal(tile.ore, "iron");
   assert.equal(tile.rail.type, "rail");
   assert.equal(tile.building.type, "miner");
+});
+
+test("진행률 표시는 같은 구간이면 다시 알리지 않는다", () => {
+  const building = { progress: 0.41 };
+  assert.equal(progressPaintChanged(building), true);
+  building.progress = 0.419;
+  assert.equal(progressPaintChanged(building), false);
+  building.progress = 0.43;
+  assert.equal(progressPaintChanged(building), true);
 });

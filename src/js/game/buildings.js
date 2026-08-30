@@ -5,7 +5,7 @@ import {
   UPGRADE_DEFS,
   itemName,
   powerDraw,
-} from "../domain/recipes.js?v=26";
+} from "../domain/recipes.js?v=28";
 
 export const RAIL_DIRECTIONS = Object.freeze({
   n: Object.freeze({ dx: 0, dy: -1, opposite: "s", label: "↑" }),
@@ -16,6 +16,15 @@ export const RAIL_DIRECTIONS = Object.freeze({
 
 const DIRECTION_IDS = Object.freeze(Object.keys(RAIL_DIRECTIONS));
 const INLINE_TYPES = Object.freeze(["furnace", "router"]);
+const paintedProgress = new WeakMap();
+
+export function progressPaintChanged(building) {
+  if (!building) return false;
+  const shown = Math.round((Number(building.progress) || 0) * 50);
+  if (paintedProgress.get(building) === shown) return false;
+  paintedProgress.set(building, shown);
+  return true;
+}
 
 export function normalizeRail(rail) {
   if (!rail || rail.type !== "rail") return;
@@ -26,6 +35,30 @@ export function normalizeRail(rail) {
   });
   if (rail.output !== "auto" && !RAIL_DIRECTIONS[rail.output]) rail.output = "auto";
   rail.output ||= "auto";
+}
+
+export function normalizeLab(building) {
+  if (building?.type !== "lab") return;
+  building.stocks ||= {};
+  Object.keys(BALANCE.research.labCostPerPoint).forEach((id) => {
+    building.stocks[id] = Math.max(0, Math.floor(Number(building.stocks[id]) || 0));
+  });
+  building.progress = Math.max(0, Number(building.progress) || 0);
+}
+
+export function labHasCost(building) {
+  normalizeLab(building);
+  return Object.entries(BALANCE.research.labCostPerPoint).every(
+    ([id, amount]) => (building.stocks[id] || 0) >= amount,
+  );
+}
+
+export function labTakeCost(building) {
+  if (!labHasCost(building)) return false;
+  Object.entries(BALANCE.research.labCostPerPoint).forEach(([id, amount]) => {
+    building.stocks[id] -= amount;
+  });
+  return true;
 }
 
 export function normalizeRouter(router) {
@@ -71,7 +104,13 @@ export function createBuilding(def) {
   }
   if (def.type === "generator") return { ...base, coal: 0, fuelLeft: 0 };
   if (def.type === "battery") return { ...base, charge: 0 };
-  if (def.type === "lab") return { ...base };
+  if (def.type === "lab") {
+    const stocks = {};
+    Object.keys(BALANCE.research.labCostPerPoint).forEach((id) => {
+      stocks[id] = 0;
+    });
+    return { ...base, stocks };
+  }
   if (def.type === "pole") return base;
   return null;
 }
@@ -151,7 +190,7 @@ export class FactorySimulation {
       return neighbor.rail.connections[RAIL_DIRECTIONS[direction].opposite] ? neighbor : null;
     }
     if (neighbor.building?.type === "shop") return neighbor;
-    if (includeMachine && ["storage", "generator"].includes(neighbor.building?.type)) return neighbor;
+    if (includeMachine && ["storage", "generator", "lab"].includes(neighbor.building?.type)) return neighbor;
     return null;
   }
 
@@ -336,6 +375,18 @@ export class FactorySimulation {
     building.progress = Math.max(0, Number(building.progress) || 0);
   }
 
+  normalizeLab(building) {
+    normalizeLab(building);
+  }
+
+  labBufferCap(id) {
+    return BALANCE.research.labBufferCap[id] || 0;
+  }
+
+  labHasCost(building) {
+    return labHasCost(building);
+  }
+
   inputCap(building) {
     return BALANCE.smelt.inputCap[building.tier] || BALANCE.smelt.inputCap[1];
   }
@@ -368,6 +419,20 @@ export class FactorySimulation {
     if (!this.store.take({ [ore]: 1 }, "furnace")) return false;
     building.inputQueue.push(ore);
     this.changedTile(tile, "furnace-input");
+    return true;
+  }
+
+  insertLabItem(tile, id) {
+    const building = tile?.building;
+    if (building?.type !== "lab") return false;
+    normalizeLab(building);
+    const cap = this.labBufferCap(id);
+    if (!cap) return false;
+    const space = cap - (building.stocks[id] || 0);
+    const accepted = Math.min(space, this.store.count(id));
+    if (accepted <= 0 || !this.store.take({ [id]: accepted }, "lab")) return false;
+    building.stocks[id] = (building.stocks[id] || 0) + accepted;
+    this.changedTile(tile, "lab-input");
     return true;
   }
 
@@ -431,6 +496,11 @@ export class FactorySimulation {
       Object.entries(building.stacks || {}).forEach(([id, count]) => this.store.add(id, count, "demolish"));
     } else if (building.type === "generator" && building.coal) {
       this.store.add("coal", building.coal, "demolish");
+    } else if (building.type === "lab") {
+      normalizeLab(building);
+      Object.entries(building.stocks || {}).forEach(([id, count]) => {
+        if (count > 0) this.store.add(id, count, "demolish");
+      });
     }
     return def;
   }
@@ -518,6 +588,13 @@ export class FactorySimulation {
     }
     if (building?.type === "generator" && item.type === "coal" && building.coal < this.coalCap(building)) {
       building.coal += 1;
+      return true;
+    }
+    if (building?.type === "lab") {
+      normalizeLab(building);
+      const cap = this.labBufferCap(item.type);
+      if (!cap || (building.stocks[item.type] || 0) >= cap) return false;
+      building.stocks[item.type] = (building.stocks[item.type] || 0) + 1;
       return true;
     }
     return false;
@@ -640,7 +717,7 @@ export class FactorySimulation {
       this.flushMiner(tile);
       this.bus.emit("machineCycle", { tile, type: "miner" });
       this.changedTile(tile, "miner");
-    } else {
+    } else if (progressPaintChanged(building)) {
       this.changedTile(tile, "progress", false);
     }
   }
@@ -722,17 +799,17 @@ export class FactorySimulation {
       this.store.markSmelted();
       this.bus.emit("machineCycle", { tile, type: "smelt", item: ingot });
       this.changedTile(tile, "smelt");
-    } else {
+    } else if (progressPaintChanged(building)) {
       this.changedTile(tile, "progress", false);
     }
   }
 
   updateStorage(tile, dt) {
     const building = tile.building;
-    building.outputAcc = (building.outputAcc || 0) + dt;
-    if (building.outputAcc < BALANCE.storage.outputInterval) return;
     const id = Object.keys(building.stacks || {}).find((key) => building.stacks[key] > 0);
     if (!id) return;
+    building.outputAcc = (building.outputAcc || 0) + dt;
+    if (building.outputAcc < BALANCE.storage.outputInterval) return;
     const rail = this.bestEmptyRail(tile, building.lastInput);
     if (!rail) return;
     building.outputAcc = 0;
@@ -823,7 +900,7 @@ export class FactorySimulation {
     if (building?.type === "pole") return { state: "online", label: "전력망 연결" };
     if (building?.type === "battery") return { state: "online", label: `충전 ${Math.floor(building.charge || 0)}` };
     if (building?.type === "lab") {
-      return this.store.has(BALANCE.research.labCostPerPoint)
+      return labHasCost(building)
         ? { state: "active", label: "연구점 생산" }
         : { state: "warning", label: "연구 자원 부족" };
     }
