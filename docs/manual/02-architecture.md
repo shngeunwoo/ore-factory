@@ -28,7 +28,7 @@ domain/  숫자·이름·레시피·공식. DOM·game·ui 금지
 | `src/js/game/progression.js` | 연구, 퀘스트, 현장 업그레이드 |
 | `src/js/game/persistence.js` | `OF2` 저장 코드 인코딩·검증 |
 | `src/js/ui/map-view.js` | 타일 DOM과 맵 렌더 |
-| `src/js/ui/fx.js` | 이동·판매·채굴 시각/음향, 충격파·플래시·파티클 캡 |
+| `src/js/ui/fx.js` | 이동·채굴 시각/음향, 충격파·파티클 캡. 판매는 400ms 스로틀 텍스트·효과음 |
 | `src/js/ui/panels.js` | 연구·퀘스트 패널의 순수 마크업 |
 | `src/js/ui/main.js` | 명령 연결, HUD·패널, 입력, rAF 루프 |
 

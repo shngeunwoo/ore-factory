@@ -8,7 +8,8 @@ export class Effects {
     this.mapView = mapView;
     this.store = store;
     this.audioContext = null;
-    this.flashTimer = 0;
+    this.lastSaleAt = 0;
+    this.lastBumpAt = 0;
   }
 
   positionFor(tile) {
@@ -79,19 +80,19 @@ export class Effects {
     this.spawn(ring, 560);
   }
 
-  flash(kind = "sale") {
-    if (this.reducedMotion() || !this.frame) return;
-    this.frame.classList.remove("fx-flash", "flash-sale", "flash-heat", "flash-research", "flash-unlock", "flash-expand");
-    void this.frame.offsetWidth;
-    this.frame.classList.add("fx-flash", `flash-${kind}`);
-    clearTimeout(this.flashTimer);
-    this.flashTimer = setTimeout(() => {
-      this.frame.classList.remove("fx-flash", `flash-${kind}`);
-    }, 460);
+  saleTick(tile, gained) {
+    const now = performance.now();
+    if (now - this.lastSaleAt < 400) return;
+    this.lastSaleAt = now;
+    this.text(tile, `+$${gained}`, "sale");
+    this.sound("sell");
   }
 
   bump(element) {
     if (!element || this.reducedMotion()) return;
+    const now = performance.now();
+    if (now - this.lastBumpAt < 400) return;
+    this.lastBumpAt = now;
     element.classList.remove("hud-bump");
     void element.offsetWidth;
     element.classList.add("hud-bump");

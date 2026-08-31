@@ -47,46 +47,6 @@
   to { left: 110%; }
 }
 
-.map-frame.fx-flash.flash-sale {
-  animation: map-flash-sale 420ms ease-out;
-}
-
-.map-frame.fx-flash.flash-heat {
-  animation: map-flash-heat 420ms ease-out;
-}
-
-.map-frame.fx-flash.flash-research {
-  animation: map-flash-research 460ms ease-out;
-}
-
-.map-frame.fx-flash.flash-unlock {
-  animation: map-flash-unlock 520ms ease-out;
-}
-
-.map-frame.fx-flash.flash-expand {
-  animation: map-flash-expand 560ms ease-out;
-}
-
-@keyframes map-flash-sale {
-  35% { box-shadow: var(--shadow), inset 0 0 90px rgba(101, 216, 153, 0.32), 0 0 28px rgba(101, 216, 153, 0.22); }
-}
-
-@keyframes map-flash-heat {
-  35% { box-shadow: var(--shadow), inset 0 0 90px rgba(240, 169, 73, 0.28), 0 0 24px rgba(240, 169, 73, 0.2); }
-}
-
-@keyframes map-flash-research {
-  35% { box-shadow: var(--shadow), inset 0 0 90px rgba(180, 121, 237, 0.3), 0 0 26px rgba(180, 121, 237, 0.22); }
-}
-
-@keyframes map-flash-unlock {
-  35% { box-shadow: var(--shadow), inset 0 0 90px rgba(88, 214, 238, 0.32), 0 0 28px rgba(88, 214, 238, 0.24); }
-}
-
-@keyframes map-flash-expand {
-  35% { box-shadow: var(--shadow), inset 0 0 90px rgba(88, 214, 238, 0.22), 0 0 36px rgba(88, 214, 238, 0.28); }
-}
-
 .map-viewport {
   width: 100%;
   height: min(60vh, 650px);

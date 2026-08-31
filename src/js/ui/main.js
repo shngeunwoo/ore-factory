@@ -19,9 +19,9 @@ import {
   powerDraw,
   TUTORIAL_STEPS,
   tutorialComplete,
-} from "../domain/recipes.js?v=36";
-import { EventBus, GameStore } from "../game/inventory.js?v=36";
-import { World, tileKey } from "../game/map.js?v=36";
+} from "../domain/recipes.js?v=37";
+import { EventBus, GameStore } from "../game/inventory.js?v=37";
+import { World, tileKey } from "../game/map.js?v=37";
 import {
   FactorySimulation,
   RAIL_DIRECTIONS,
@@ -29,7 +29,7 @@ import {
   normalizeRouter,
   queueSummary,
   stackSummary,
-} from "../game/buildings.js?v=36";
+} from "../game/buildings.js?v=37";
 import {
   SAVE_CODE_FILE_MAX_BYTES,
   decodeSaveCode,
@@ -39,12 +39,12 @@ import {
   normalizeSaveCodeText,
   purgeStoredSaves,
   saveCodeFileName,
-} from "../game/persistence.js?v=36";
-import { PowerSystem } from "../game/power.js?v=36";
-import { ProgressionSystem } from "../game/progression.js?v=36";
-import { Effects } from "./fx.js?v=36";
-import { MapView } from "./map-view.js?v=36";
-import { questMarkup, researchMarkup } from "./panels.js?v=36";
+} from "../game/persistence.js?v=37";
+import { PowerSystem } from "../game/power.js?v=37";
+import { ProgressionSystem } from "../game/progression.js?v=37";
+import { Effects } from "./fx.js?v=37";
+import { MapView } from "./map-view.js?v=37";
+import { questMarkup, researchMarkup } from "./panels.js?v=37";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1410,7 +1410,6 @@ function handleDocumentClick(event) {
     if (result.ok) {
       toast(`${result.tech.name} 연구 완료`, "success");
       logActivity(`${result.tech.name} 기술 적용`);
-      effects.flash("unlock");
       effects.sound("unlock");
       renderPanels();
     } else {
@@ -1493,7 +1492,6 @@ async function handleModalClick(event) {
       effects.burst(ui.modalTile, "install", 8);
       effects.shockwave(ui.modalTile, "install");
       effects.pulse(ui.modalTile, "install");
-      effects.flash("unlock");
       effects.sound("unlock");
       renderMachine();
       renderCraft();
@@ -1747,7 +1745,6 @@ function bindEvents() {
       toast(`구역 확장 완료 · -$${detail.cost}`, "success");
       logActivity(`${detail.direction.toUpperCase()} 방향 구역 확장`);
       $("#map-frame").classList.add("expanding");
-      effects.flash("expand");
       setTimeout(() => $("#map-frame").classList.remove("expanding"), 700);
     }
   });
@@ -1760,18 +1757,12 @@ function bindEvents() {
   bus.on("groundDrop", () => refreshTutorialTiles());
   bus.on("machineCycle", () => refreshTutorialTiles());
   bus.on("cargoSold", ({ tile, gained }) => {
-    effects.text(tile, `+$${gained}`, "sale");
-    effects.pulse(tile, "sale");
-    effects.burst(tile, "sale", 10);
-    effects.shockwave(tile, "sale");
-    effects.flash("sale");
-    effects.sound("sell");
+    effects.saleTick(tile, gained);
     refreshTutorialTiles();
   });
   bus.on("discover", ({ id }) => {
     toast(`${itemName(id)} 발견`, "success");
     logActivity(`신규 자원 확인 · ${itemName(id)}`);
-    effects.flash("unlock");
   });
   bus.on("machineCycle", ({ tile, type, item }) => {
     if (type === "smelt") {
@@ -1784,7 +1775,6 @@ function bindEvents() {
       effects.shockwave(tile, "research");
       effects.pulse(tile, "research");
       effects.text(tile, "+연구점", "research");
-      effects.flash("research");
       effects.sound("unlock");
     } else {
       effects.burst(tile, "spark", 5);
@@ -1799,7 +1789,6 @@ function bindEvents() {
   bus.on("questComplete", ({ quest }) => {
     toast(`퀘스트 완료 · ${quest.name}`, "success");
     logActivity(`${quest.name} 완료 · 보상 지급`);
-    effects.flash("unlock");
     effects.sound("unlock");
   });
   bus.on("powerChanged", () => {
